@@ -1,4 +1,4 @@
-import { Matrix4, Vector3 } from "three";
+import { Matrix4, Vector2, Vector3 } from "three";
 
 const background = 0xff302c2c;
 const maxPixels = 210_000;
@@ -24,17 +24,20 @@ export class SoftwareRenderer {
   setMeshes(meshes) {
     const sources = new Map();
     const vertex = new Vector3();
+    const texcoord = new Vector2();
     this.meshes = meshes.map((mesh) => {
       const geometry = mesh.geometry;
       const position = geometry.attributes.position;
       const uv = geometry.attributes.uv;
       const world = new Float32Array(position.count * 3);
       const texcoords = new Float32Array(position.count * 2);
+      const texture = mesh.material.map;
+      texture.updateMatrix();
       for (let i = 0; i < position.count; i++) {
         vertex.fromBufferAttribute(position, i).applyMatrix4(mesh.matrixWorld).toArray(world, i * 3);
-        texcoords.set([uv.getX(i), uv.getY(i)], i * 2);
+        texcoord.fromBufferAttribute(uv, i).applyMatrix3(texture.matrix).toArray(texcoords, i * 2);
       }
-      const source = mesh.material.map.image;
+      const source = texture.image;
       if (!sources.has(source)) {
         const atlas = document.createElement("canvas");
         atlas.width = source.width;
