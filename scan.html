@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b1010">
+<title>Vyral Spatial Scan | Explore Reality</title>
+<meta name="description" content="Fly through a real photogrammetry reconstruction derived from original property footage, with no made-up floor plan.">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.175.0/examples/jsm/"}}</script>
+<style>
+:root{color-scheme:dark;--bg:#08120e;--glass:#122319d9;--line:#e5e8e021;--text:#f3f5eb;--muted:#a7b9ad;--gold:#dbc4a2}
+*{box-sizing:border-box}body{margin:0;font:400 13px/1.55 "DM Sans",sans-serif;background:var(--bg);color:var(--text);overflow:hidden}button{cursor:pointer;font:inherit}button:focus-visible,a:focus-visible{outline:2px solid var(--gold);outline-offset:3px}a{color:inherit;text-decoration:none}svg{width:18px;height:18px}#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab;background:radial-gradient(ellipse at 48% 42%,#314c3a 0,#102016 49%,#080f0b 92%)}#scene.grabbing{cursor:grabbing}
+#vignette{position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 44%,#02070470 100%),linear-gradient(180deg,#020c0780,transparent 22%,transparent 70%,#010704ae);pointer-events:none}
+nav{position:fixed;left:0;right:0;top:0;height:84px;display:flex;align-items:center;justify-content:space-between;padding:0 35px;z-index:9;border-bottom:1px solid #ffffff12;gap:16px}.brand{display:flex;align-items:center;gap:13px}.mark{display:grid;place-items:center;border:1.5px solid var(--gold);height:41px;width:41px;border-radius:10px;color:var(--gold);font:800 25px Manrope;letter-spacing:-.16em;padding-right:5px}.brand strong{font:800 14px Manrope;letter-spacing:.15em}.brand strong span{color:var(--gold)}.brand small{display:block;letter-spacing:.18em;color:#b7c3b8;font-size:8px;font-weight:800;margin-top:4px}.top-right{display:flex;gap:11px;align-items:center}.live{font-size:10px;letter-spacing:.12em;color:#c7d2c4;font-weight:700}.live:before{content:"";display:inline-block;background:#b4d0ae;height:7px;width:7px;border-radius:50%;margin-right:8px;box-shadow:0 0 0 4px #b4d0ae14}.ghost{border:1px solid #ffffff36;border-radius:9px;color:#e7eae2;background:#162a1bd0;backdrop-filter:blur(10px);padding:10px 14px;display:flex;align-items:center;gap:7px;font-size:12px}.ghost:hover{background:#304532}
+.hero{position:fixed;left:38px;top:116px;z-index:6;max-width:min(440px,60vw);pointer-events:none}.eyebrow{font-weight:800;font-size:10px;letter-spacing:.21em;color:var(--gold)}h1{font:650 clamp(25px,3.2vw,47px)/1.13 Manrope;letter-spacing:-.055em;margin:13px 0 10px;text-shadow:0 4px 28px #0007}.hero p{color:#d6e0d6;font-size:12px;line-height:1.7;margin:0;max-width:370px}.tag{display:inline-flex;margin-top:18px;border:1px solid #ffffff38;color:#dce9dc;background:#0e2116aa;border-radius:30px;padding:8px 12px;align-items:center;gap:9px;font-size:10px}.tag i{height:7px;width:7px;background:#d8c5a3;border-radius:50%}
+.details{position:fixed;right:24px;top:116px;z-index:7;width:260px;padding:22px;background:#102218c9;backdrop-filter:blur(24px);border:1px solid #e5e8e029;border-radius:18px;box-shadow:0 22px 55px #0004}.details h2{font:700 15px Manrope;margin:7px 0 11px;letter-spacing:-.02em}.details p{font-size:11px;color:#c0cbc0;margin:0;line-height:1.7}.metrics{margin:18px 0 13px;display:grid;grid-template-columns:1fr 1fr;gap:7px}.metric{padding:12px 10px;border:1px solid #e6e8df20;border-radius:10px;background:#ffffff08}.metric b{font:700 20px Manrope;letter-spacing:-.05em;display:block}.metric span{font-size:9px;color:#b1c3b3;letter-spacing:.04em}.source{border-top:1px solid #ffffff22;padding-top:14px;font-size:10px;color:#b2c0b1;line-height:1.6}.source strong{color:#f0e0c2}
+.bottom{position:fixed;z-index:9;bottom:36px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:6px;background:#101e16e8;border:1px solid #ffffff35;backdrop-filter:blur(23px);border-radius:17px;padding:6px;box-shadow:0 15px 40px #0008;max-width:calc(100vw - 20px)}.bottom button{display:flex;gap:9px;align-items:center;justify-content:center;border:0;background:transparent;color:#d6e3d5;padding:13px 16px;border-radius:12px;white-space:nowrap;font-size:12px;font-weight:700;min-width:100px}.bottom button:hover{background:#ffffff17}.bottom button.selected{background:#e0c7a4;color:#15241b}.divider{width:1px;height:25px;background:#ffffff22}
+.hint{position:fixed;z-index:6;left:36px;bottom:40px;color:#c4d2c6;font-size:10px;display:flex;align-items:center;gap:9px;text-shadow:0 2px 8px #000}.hint .circle{border:1px solid #ffffff4a;border-radius:7px;height:29px;width:29px;display:grid;place-items:center;background:#1a2b20a3;font-size:16px}.progress{position:fixed;z-index:20;inset:0;background:#0b1710;display:grid;place-items:center;transition:opacity .65s,visibility .65s}.progress.done{opacity:0;visibility:hidden;pointer-events:none}.loading-content{text-align:center;width:min(290px,80vw)}.loader-mark{font:800 65px Manrope;color:#dfc7a3;letter-spacing:-.14em}.loader-mark span{color:#a0baa0}.loading-content h2{font:700 18px Manrope;margin:12px 0 9px}.loading-content p{font-size:11px;color:#b5c3b5;margin:0}.loadingbar{background:#ffffff25;height:3px;border-radius:4px;margin:23px 0 0;overflow:hidden}.loadingbar i{display:block;background:#dec9aa;height:100%;width:18%;transition:width 1s}
+.bottomright{position:fixed;right:22px;bottom:25px;z-index:6;color:#b0bcb0;font-size:10px;max-width:240px;text-align:right}.timeline{position:fixed;z-index:8;left:50%;transform:translateX(-50%);bottom:106px;display:flex;align-items:center;gap:9px;color:#e7e9dd;background:#12251abf;border:1px solid #ffffff2f;padding:9px 14px;border-radius:30px;backdrop-filter:blur(12px);width:min(420px,calc(100vw - 36px))}.timeline input{flex:1;accent-color:#dec5a2;cursor:pointer}.timeline span{font-size:10px;min-width:39px}.timeline.hidden{display:none}
+#sourceModal{position:fixed;inset:0;z-index:25;background:#030a05e3;backdrop-filter:blur(15px);display:grid;place-items:center;padding:20px}#sourceModal.hidden{display:none}.modalInner{display:flex;flex-direction:column;gap:14px;height:min(88vh,780px);width:min(87vw,960px);align-items:end}.modalInner video{height:calc(100% - 52px);width:100%;object-fit:contain;background:#000;border-radius:10px}.modalInner p{font-size:11px;color:#cbd8c9;margin:0;align-self:center}.exit{border:1px solid #ffffff48;background:#293c2e;color:#fff;padding:10px 15px;border-radius:8px}
+#fatal{position:fixed;inset:0;z-index:18;display:none;align-items:center;justify-content:center;background:#0c1710e8;padding:22px}#fatal.visible{display:flex}.fatalBox{max-width:480px;background:#1a2b20;border:1px solid #ffffff34;border-radius:16px;padding:26px}.fatalBox h3{font:700 23px Manrope;margin:0 0 13px}.fatalBox p{color:#c5d3c5;font-size:12px;line-height:1.7}
+@media(max-width:1040px){.details{width:205px;right:15px;padding:16px}.hero{left:24px}.hero h1{font-size:32px}.hint{display:none}}
+@media(max-width:720px){nav{height:66px;padding:0 15px}.mark{height:34px;width:34px;font-size:21px}.brand{gap:9px}.brand strong{font-size:11px}.brand small{font-size:6px}.top-right .live{display:none}.top-right .ghost{padding:9px 10px}.hero{top:89px;left:20px;max-width:75vw}.hero h1{font-size:29px;margin:8px 0 6px}.hero p{font-size:10px;max-width:240px}.tag{margin-top:10px;font-size:9px;padding:6px 10px}.details{top:auto;right:12px;left:12px;bottom:164px;width:auto;display:flex;align-items:center;padding:10px 13px;border-radius:12px;gap:10px}.details h2{display:none}.details p{display:none}.details .eyebrow{font-size:9px;white-space:nowrap}.metrics{display:flex;margin:0;gap:5px}.metric{padding:7px 9px}.metric b{font-size:14px}.metric span{font-size:8px}.details .source{display:none}.bottom{bottom:20px;gap:1px}.bottom button{font-size:10px;min-width:auto;padding:11px 12px;gap:4px}.bottom button svg{width:16px;height:16px}.bottomright{display:none}.timeline{bottom:88px}.hint{display:none}}
+@media(max-width:390px){.brand small{display:none}.bottom button{padding:10px 8px}.hero h1{font-size:26px}}
+@media(prefers-reduced-motion:reduce){*,*:before,*:after{transition-duration:.01ms!important;animation-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="Real reconstructed 3D point cloud; drag to rotate and scroll to zoom"></canvas><div id="vignette"></div>
+<nav>
+<a href="/" class="brand" aria-label="Vyral home"><span class="mark">V.</span><span><strong>VYRAL <span>SPACES</span></strong><small>IMMERSIVE REAL ESTATE</small></span></a>
+<div class="top-right"><span class="live">RECONSTRUCTED FROM REAL FOOTAGE</span><button class="ghost" id="sourceButton">Original video ↗</button><button class="ghost" id="shareButton">Share ↗</button></div>
+</nav>
+<div class="hero">
+<span class="eyebrow">REAL RECONSTRUCTION / EXPERIMENT 001</span><h1>Step inside<br>the footage.</h1>
+<p>A 3D point-based scene reconstructed from the property video. Fly through observed geometry instead of an imaginary floor plan.</p>
+<div class="tag"><i></i> Unmeasured space · Experimental scan</div>
+</div>
+<aside class="details">
+<div><span class="eyebrow">CAPTURE DATA</span><h2>Property reconstruction</h2><p>The geometry and camera trajectory are calculated from the original recording. Dense surfaces are estimated from monocular depth.</p></div>
+<div class="metrics"><div class="metric"><b id="pointCount">—</b><span>3D points</span></div><div class="metric"><b id="cameraCount">—</b><span>tracked views</span></div></div>
+<div class="source"><strong>What is real?</strong> Triangulated features and camera positions.<br><strong>What is estimated?</strong> Depth between those features, with possible holes and artifacts.</div>
+</aside>
+<div class="hint"><span class="circle">↻</span> Drag to orbit · Scroll to zoom · WASD to move</div>
+<div class="timeline hidden" id="timeline"><span id="timeLabel">00:00</span><input id="timelineSlider" type="range" min="0" max="1000" value="0" aria-label="Camera path position"><span id="timeTotal">00:43</span></div>
+<div class="bottom" role="toolbar" aria-label="3D navigation controls">
+<button class="selected" data-mode="orbit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m12 2 9 5-9 5-9-5 9-5Zm-9 5v10l9 5 9-5V7"/></svg> Orbit</button>
+<button data-mode="walk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m5 21 5-9 2 2 4-8m-6 6L6 8m6 6 5 2"/></svg> Walk</button>
+<button data-mode="tour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="m7 5 13 7-13 7V5Z"/></svg> Fly-through</button>
+<span class="divider"></span>
+<button id="resetButton"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 10a8 8 0 1 1 0 5m0 4v-6h6"/></svg> Reset</button>
+</div>
+<div class="bottomright">CPU photogrammetry · AI depth estimation · No fabricated architecture</div>
+<div class="progress" id="progress"><div class="loading-content"><div class="loader-mark">V<span>.</span></div><h2>Reconstructing your view</h2><p id="loadingText">Loading the real 3D scene</p><div class="loadingbar"><i id="loadingBar"></i></div></div></div>
+<div id="fatal"><div class="fatalBox"><h3>Scan not available</h3><p id="fatalText">The reconstruction could not be loaded. The source video is still available.</p><button class="ghost" id="retryButton">Retry 3D scan</button></div></div>
+<div id="sourceModal" class="hidden" role="dialog" aria-modal="true" aria-label="Original source footage"><div class="modalInner"><button class="exit" id="closeModal">Close ✕</button><video id="originalVideo" controls playsinline preload="none"></video><p>The actual 360 × 640 vertical recording used for reconstruction.</p></div></div>
+<script type="module">
+import * as THREE from "three";
+import {OrbitControls} from "three/addons/controls/OrbitControls.js";
+const $=id=>document.getElementById(id);
+const SCAN="/assets/reconstruction/scene-a.json";
+const VIDEO="https://d2ol7oe51mr4n9.cloudfront.net/user_3LxvA5Gl3ZgqPX9FeucXcTI5fjL/e5c0a834-e8e8-4eb3-b44c-99673a8cf3d9.mp4";
+let renderer,scene,camera,controls,cloud,route,scan=null,mode="orbit",tourProgress=0,playing=false,last=0,walkYaw=0,walkPitch=0,drag=null;
+let intro=true;const held=new Set();const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));const v=p=>new THREE.Vector3(...p);
+function fmt(sec){sec=Math.max(0,Math.floor(sec||0));return String(Math.floor(sec/60)).padStart(2,"0")+":"+String(sec%60).padStart(2,"0")}
+function loading(s,p){$("loadingText").textContent=s;$("loadingBar").style.width=p+"%"}
+function fatal(error){console.error(error);$("progress").classList.add("done");$("fatalText").textContent="The scan is not ready or cannot be loaded: "+String(error.message||error);$("fatal").classList.add("visible")}
+function setup(){
+ renderer=new THREE.WebGLRenderer({canvas:$("scene"),antialias:true,powerPreference:"high-performance"});
+ renderer.setPixelRatio(Math.min(devicePixelRatio||1,1.8));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.setClearColor(0x14271b,0);
+ scene=new THREE.Scene();scene.fog=new THREE.FogExp2(0x17281d,.013);
+ camera=new THREE.PerspectiveCamera(67,innerWidth/innerHeight,.025,400);camera.position.set(7,6,10);
+ controls=new OrbitControls(camera,renderer.domElement);controls.enableDamping=true;controls.dampingFactor=.065;controls.maxDistance=60;controls.minDistance=.12;controls.enablePan=true;controls.target.set(0,0,0);
+ resize();window.addEventListener("resize",resize);
+ const amb=new THREE.AmbientLight(0xffffff,.7);scene.add(amb);
+ const light=new THREE.HemisphereLight(0xbde1cc,0x172b20,1.2);scene.add(light);
+ renderer.domElement.addEventListener("pointerdown",e=>{drag={x:e.clientX,y:e.clientY};renderer.domElement.classList.add("grabbing")});
+ renderer.domElement.addEventListener("pointerup",()=>{drag=null;renderer.domElement.classList.remove("grabbing")});
+ renderer.domElement.addEventListener("pointerleave",()=>{drag=null;renderer.domElement.classList.remove("grabbing")});
+ renderer.domElement.addEventListener("pointermove",e=>{if(mode!=="walk"||!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y;walkYaw-=dx*.004;walkPitch=clamp(walkPitch-dy*.004,-1.38,1.38);drag={x:e.clientX,y:e.clientY}});
+ document.addEventListener("keydown",e=>{held.add(e.key.toLowerCase());if(["arrowup","arrowdown","arrowleft","arrowright"," "].includes(e.key.toLowerCase()))e.preventDefault();if(e.key==="Escape")closeVideo()});
+ document.addEventListener("keyup",e=>held.delete(e.key.toLowerCase()));
+ document.querySelectorAll("[data-mode]").forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+ $("resetButton").onclick=reset;$("retryButton").onclick=()=>location.reload();$("shareButton").onclick=()=>{
+  if(navigator.share)navigator.share({title:"Vyral real 3D scan",url:location.href}).catch(()=>{});
+  else navigator.clipboard?.writeText(location.href).then(()=>{$("shareButton").textContent="Copied ✓";setTimeout(()=>$("shareButton").textContent="Share ↗",1500)});
+ };
+ $("sourceButton").onclick=()=>{$("sourceModal").classList.remove("hidden");$("originalVideo").src=VIDEO;$("originalVideo").play().catch(()=>{})};
+ $("closeModal").onclick=closeVideo;
+ $("sourceModal").onclick=e=>{if(e.target===$("sourceModal"))closeVideo()};
+ $("timelineSlider").oninput=e=>{tourProgress=Number(e.target.value)/1000;setPose(tourProgress);$("timeLabel").textContent=fmt(tourProgress*scan.cameraPath.at(-1).sec)};
+ requestAnimationFrame(animate);
+}
+function closeVideo(){const el=$("originalVideo");el.pause();el.removeAttribute("src");el.load();$("sourceModal").classList.add("hidden")}
+function resize(){if(!renderer)return;camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight,false)}
+async function unzip(base64){
+ const binary=atob(base64);const input=new Uint8Array(binary.length);
+ for(let i=0;i<binary.length;i++)input[i]=binary.charCodeAt(i);
+ if(typeof DecompressionStream!=="undefined"){
+  const stream=new Blob([input]).stream().pipeThrough(new DecompressionStream("deflate"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+ }
+ const lib=await import("https://cdn.jsdelivr.net/npm/fflate@0.8.2/esm/browser.js");
+ return lib.unzlibSync(input);
+}
+function buildPoints(data,bytes){
+ const n=data.count;
+ if(bytes.byteLength!==n*9)throw new Error("Corrupted 3D data");
+ const xyz=new Float32Array(n*3),rgb=new Float32Array(n*3),dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+ for(let i=0;i<n;i++){
+  const o=i*9;for(let k=0;k<3;k++){
+   xyz[i*3+k]=data.min[k]+dv.getUint16(o+k*2,true)/65535*(data.max[k]-data.min[k]);
+   rgb[i*3+k]=bytes[o+6+k]/255;
+  }
+ }
+ const geometry=new THREE.BufferGeometry();
+ geometry.setAttribute("position",new THREE.Float32BufferAttribute(xyz,3));
+ geometry.setAttribute("color",new THREE.Float32BufferAttribute(rgb,3));
+ geometry.computeBoundingSphere();
+ const material=new THREE.ShaderMaterial({
+  uniforms:{size:{value:Math.min(devicePixelRatio||1,2)*3.6}},
+  vertexColors:true,transparent:false,depthTest:true,depthWrite:true,
+  vertexShader:"varying vec3 vColor;uniform float size;void main(){vColor=color;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(size*(14./max(-mv.z,.15)),1.15,7.5);}",
+  fragmentShader:"varying vec3 vColor;void main(){float d=length(gl_PointCoord-vec2(.5));if(d>.48)discard;gl_FragColor=vec4(vColor,1.0);}"
+ });
+ cloud=new THREE.Points(geometry,material);cloud.frustumCulled=false;scene.add(cloud);
+ const bound=geometry.boundingSphere;
+ const center=bound.center,radius=clamp(bound.radius,2,25);
+ controls.target.copy(center);camera.position.copy(center).add(new THREE.Vector3(radius*.75,radius*.45,radius*.9));controls.minDistance=.12;controls.maxDistance=radius*3;
+ controls.update();
+ // Camera path is actual COLMAP recovered positions (not a hand-drawn route).
+ const raw=data.cameraPath.map(x=>v(x.p));
+ const pts=raw.filter((p,i)=>i===0||p.distanceTo(raw[i-1])<radius*.7);
+ const path=new THREE.BufferGeometry().setFromPoints(pts);
+ const line=new THREE.Line(path,new THREE.LineBasicMaterial({color:0xe6cf9f,transparent:true,opacity:.38,depthWrite:false}));
+ route=line;route.visible=false;scene.add(route);
+ $("pointCount").textContent=n>=1000?(n/1000).toFixed(0)+"k":String(n);
+ $("cameraCount").textContent=data.registeredFrames;
+ $("timeTotal").textContent=fmt(data.cameraPath.at(-1).sec);
+}
+function reset(){playing=false;setMode("orbit");if(!cloud)return;const bound=cloud.geometry.boundingSphere,r=bound.radius;controls.target.copy(bound.center);camera.position.copy(bound.center).add(new THREE.Vector3(r*.75,r*.45,r*.9));controls.update()}
+function setPose(t){
+ if(!scan?.cameraPath?.length)return;
+ const arr=scan.cameraPath;const f=clamp(t,0,.9999)*(arr.length-1),i=Math.floor(f),alpha=f-i;
+ const first=arr[i],second=arr[Math.min(i+1,arr.length-1)];
+ const pos=v(first.p).lerp(v(second.p),alpha);
+ const dir=v(first.dir).lerp(v(second.dir),alpha).normalize();
+ if(!Number.isFinite(dir.x)||dir.length()<.1)dir.set(0,0,-1);
+ camera.position.copy(pos);
+ const target=pos.clone().add(dir);
+ const mat=new THREE.Matrix4().lookAt(pos,target,new THREE.Vector3(0,1,0));
+ camera.quaternion.setFromRotationMatrix(mat);
+}
+function setMode(next){
+ if(!scan)return;
+ mode=next;playing=next==="tour";
+ document.querySelectorAll("[data-mode]").forEach(b=>b.classList.toggle("selected",b.dataset.mode===mode));
+ $("timeline").classList.toggle("hidden",next!=="tour");
+ controls.enabled=next==="orbit";
+ route.visible=next!=="orbit";
+ if(next==="walk"){tourProgress=clamp(tourProgress,.01,.99);setPose(tourProgress);const d=new THREE.Vector3();camera.getWorldDirection(d);walkYaw=Math.atan2(-d.x,-d.z);walkPitch=Math.asin(d.y)}
+ if(next==="tour"){if(tourProgress>=.99)tourProgress=0;setPose(tourProgress)}
+}
+function updateWalk(dt){
+ const dir=new THREE.Vector3();camera.getWorldDirection(dir);dir.y=0;dir.normalize();
+ const right=new THREE.Vector3(-dir.z,0,dir.x);
+ const vec=new THREE.Vector3();
+ if(held.has("w")||held.has("arrowup"))vec.add(dir);
+ if(held.has("s")||held.has("arrowdown"))vec.sub(dir);
+ if(held.has("d")||held.has("arrowright"))vec.add(right);
+ if(held.has("a")||held.has("arrowleft"))vec.sub(right);
+ if(held.has("e")||held.has(" "))vec.y+=1;
+ if(held.has("q"))vec.y-=1;
+ if(vec.lengthSq())camera.position.addScaledVector(vec.normalize(),dt*(held.has("shift")?5:1.5));
+ const look=new THREE.Vector3(-Math.sin(walkYaw)*Math.cos(walkPitch),Math.sin(walkPitch),-Math.cos(walkYaw)*Math.cos(walkPitch));
+ camera.lookAt(camera.position.clone().add(look));
+}
+function animate(now){
+ requestAnimationFrame(animate);
+ const dt=Math.min((now-(last||now))/1000,.05);last=now;
+ if(mode==="orbit")controls?.update();
+ if(mode==="walk")updateWalk(dt);
+ if(mode==="tour"&&playing&&scan?.cameraPath?.length){
+  const total=scan.cameraPath.at(-1).sec||43;
+  tourProgress=Math.min(1,tourProgress+dt/Math.max(18,total));
+  setPose(tourProgress);
+  $("timelineSlider").value=String(Math.round(tourProgress*1000));
+  $("timeLabel").textContent=fmt(tourProgress*total);
+  if(tourProgress>=1){playing=false;setMode("orbit")}
+ }
+ renderer?.render(scene,camera);
+}
+async function load(){
+ try{
+  setup();loading("Downloading reconstructed camera geometry",22);
+  const response=await fetch(SCAN,{cache:"no-store"});
+  if(!response.ok)throw new Error("Scan data HTTP "+response.status);
+  const data=await response.json();if(data.format!=="vyral-xyzrgb-v1")throw new Error("Unsupported scan format");
+  loading("Expanding real 3D points",64);
+  const bytes=await unzip(data.points);
+  loading("Preparing interactive spatial view",85);
+  scan=data;buildPoints(data,bytes);
+  if(data.count<1500)throw new Error("Not enough geometry for a useful walkthrough");
+  loading("Ready to explore",100);$("progress").classList.add("done");
+ }catch(e){fatal(e)}
+}
+load();
+</script>
+</body></html>
