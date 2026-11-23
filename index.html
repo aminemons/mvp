@@ -1,62 +1,63 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#111916">
-<meta name="description" content="Vyral Spaces: explore real properties in an orbitable 3D spatial concept and photo-based virtual walkthrough.">
-<meta property="og:title" content="Vyral Spaces — explore the property">
-<meta property="og:description" content="Fly through the layout, select rooms and see real camera footage in an interactive tour.">
-<title>Vyral Spaces — Explore the space</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="./styles.css">
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.175.0/examples/jsm/"}}</script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#191b1e">
+  <meta name="description" content="Move through a 3D reconstruction of real property footage.">
+  <title>Vyral Spaces | 3D property tour</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script type="importmap">
+    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.175.0/examples/jsm/"}}
+  </script>
 </head>
 <body>
-<div id="app">
-<header class="topbar">
-<a class="brand" href="./" aria-label="Vyral Spaces home"><span class="brandLogo">V<span class="brandDot">.</span></span><span class="brandStack"><strong>VYRAL<span> SPACES</span></strong><small>IMMERSIVE PROPERTY EXPERIENCES</small></span></a>
-<div class="topCenter">An entirely new perspective <span class="topDivider"></span> <span class="topLive"><i></i> LIVE PROTOTYPE</span></div>
-<div class="headerActions">
-<button type="button" id="chooseProperty" class="topButton"><span class="propertyNumber">01</span><span id="propertyPickerName">Courtyard residence</span><span class="chevron">⌄</span></button>
-<button type="button" class="iconButton headerShare" id="shareButton" aria-label="Copy share link" title="Share this property"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 16V3m0 0-5 5m5-5 5 5M4 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg></button>
-</div>
-</header>
-<main class="workspace">
-<section class="viewer" id="viewer" aria-label="Interactive property explorer">
-<div class="sky"></div><div id="glScene" class="glScene"><canvas id="glCanvas" aria-label="Drag to orbit the property model. Scroll to zoom. Click rooms to explore."></canvas></div>
-<div class="photoStage isHidden" id="photoStage"><div class="photoBackdrop" id="photoBackdrop"></div><div class="photoGlow"></div><div class="photoCrop" id="photoCrop"><img id="roomPhoto" alt="Real camera footage from this room" draggable="false"/></div><div class="photoShade"></div></div>
-<div class="planStage isHidden" id="planStage"><div class="planPlate"><div class="planTitle">Property layout <span>Conceptual · not measured</span></div><svg id="planSvg" viewBox="0 0 800 560" role="img" aria-label="Illustrative, clickable floorplan"></svg><div class="planCaption">Tap any room to jump to its real photo. Room dimensions are illustrative.</div></div></div>
-<div class="sceneTop"><div class="topLeft"><span class="quietOverline" id="modeHint">3D OVERVIEW</span><h1 id="heroTitle">A new way to explore.</h1><p id="heroText">Orbit, zoom and select a room to enter the space.</p></div><div class="topControls"><button id="resetCamera" class="outlineButton" title="Reset camera view"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 10a9 9 0 1 1 1 7m-1 2v-7h7"/></svg><span>Reset view</span></button><button id="fullscreen" class="outlineButton" title="Fullscreen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 9V4h5m6 0h5v5M20 15v5h-5m-6 0H4v-5"/></svg><span>Expand</span></button></div></div>
-<div class="modelGuide" id="modelGuide"><div class="guideIcon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3 3 8l9 5 9-5-9-5zm-9 5v8l9 5 9-5V8m-9 5v8"/></svg></div><div><b>Drag to orbit</b><span>Scroll to zoom · Select a room</span></div></div>
-<button id="photoPrev" class="photoNav isHidden" aria-label="Previous room"><span>‹</span></button><button id="photoNext" class="photoNav isHidden" aria-label="Next room"><span>›</span></button>
-<div class="photoIndicator isHidden" id="photoIndicator"><span class="indicatorDot"></span><span id="photoCoverage">Partial photo sweep from original footage</span></div>
-<div class="sceneBottom">
-<div class="modeBar" role="group" aria-label="Viewing mode">
-<button class="mode active" data-mode="3d"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m12 2 9 5-9 5-9-5 9-5Zm-9 5v10l9 5 9-5V7m-9 5v10"/></svg><span>3D model</span></button>
-<button class="mode" data-mode="photo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7h4l2-3h6l2 3h4v13H3V7Zm9 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg><span>Explore</span></button>
-<button class="mode" data-mode="plan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="1"/><path d="M3 11h10V3m0 8v10m0-6h8"/></svg><span>Floor plan</span></button>
-</div>
-<div class="stageActions"><button class="pillAction" id="flyButton"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m6 4 15 8-15 8V4Z"/></svg><span>Guided flyover</span></button><button class="pillAction" id="videoButton"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-3v10l-4-3"/></svg><span>Original video</span></button></div>
-</div>
-<div class="statusLine" id="statusLine">Interactive 3D concept · Room geometry is illustrative, not a measured scan</div>
-<div class="loadingCurtain" id="loadingCurtain"><div class="loadingLogo">V<span>.</span></div><p>Preparing your space</p><div class="loadingTrack"><i></i></div></div>
-</section>
-<aside class="roomsPanel">
-<div class="panelHeader"><span class="panelEyebrow">YOUR PRIVATE VIEWING</span><h2 id="propertyTitle">Residence study 01</h2><p id="propertyDesc">Discover the property through its actual footage, room by room.</p></div>
-<div class="panelTabs"><span>THE SPACES</span><span id="roomCount">06 rooms</span></div>
-<div class="roomList" id="roomList"></div>
-<div class="panelTip"><span class="tipGlyph">✳</span><div><strong>About this space</strong><p>This 3D layout is an interactive concept based on the supplied videos. Room photographs are genuine; geometry and positions are not measured.</p></div></div>
-<div class="panelFooter"><span class="smallLink" id="assetBadge">2 real properties / 0 generated interiors</span><button id="panelHelp" type="button">How it works ↗</button></div>
-</aside>
-</main>
-<footer><span>Vyral Studio © 2026</span><span>Experience real estate in a new dimension</span><span>Built without a reconstruction GPU</span></footer>
-</div>
-<div id="propertyModal" class="modal isHidden" role="dialog" aria-modal="true" aria-labelledby="propertyModalTitle"><div class="modalInner"><div class="modalTop"><div><span class="panelEyebrow">CHOOSE A SPACE</span><h2 id="propertyModalTitle">Explore a property</h2></div><button class="iconButton" id="closeModal" aria-label="Close property selector">✕</button></div><div id="propertyCards" class="propertyCards"></div></div></div>
-<div id="videoModal" class="modal isHidden" role="dialog" aria-modal="true" aria-label="Original property footage"><div class="videoModalInner"><button id="closeVideo" class="closeVideo" type="button">Close video ✕</button><video id="sourceVideo" controls playsinline preload="none"></video><div class="videoSub">Source recording · 360 × 640 portrait footage · No simulated views</div></div></div>
-<div id="notification" class="notification isHidden" role="status"></div>
-<script type="module" src="./app.js"></script>
+  <div class="app">
+    <header class="bar">
+      <a class="brand" href="./" aria-label="Vyral Spaces home"><span class="brand-icon" aria-hidden="true">V</span><span>Vyral <strong>Spaces</strong></span></a>
+      <label class="property"><span>Property</span>
+        <select id="property" aria-label="Property"></select>
+      </label>
+      <button class="share" id="share" type="button" title="Copy tour link" aria-label="Copy tour link">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2m2 6a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2"/></svg>
+      </button>
+    </header>
+    <main id="viewer">
+      <canvas id="scene" aria-label="Interactive three-dimensional property scan"></canvas>
+      <div class="shade"></div>
+      <section class="heading" aria-labelledby="name">
+        <p class="caption">3D property scan</p>
+        <h1 id="name">Vyral Spaces</h1>
+        <p id="coverage"></p>
+      </section>
+      <div class="progress" id="progress" role="status"><span class="spinner"></span><span id="progress-text">Loading 3D scan…</span><button id="retry" type="button" hidden>Retry</button></div>
+      <aside class="route" id="route-panel" aria-label="Camera route">
+        <div class="route-head"><span>Scan path</span><span id="route-time"></span></div>
+        <canvas id="map" width="168" height="103" aria-label="Top-down projection of the tracked camera path"></canvas>
+      </aside>
+      <div class="controls" id="controls">
+        <div class="modes" role="group" aria-label="Viewing mode">
+          <button id="walk" type="button" aria-pressed="true">Walk</button>
+          <button id="orbit" type="button" aria-pressed="false">Orbit</button>
+        </div>
+        <button id="play" class="primary" type="button" aria-pressed="false"><span id="play-icon" aria-hidden="true">▶</span><span id="play-label">Play tour</span></button>
+        <button id="reset" type="button" aria-label="Reset view" title="Reset view">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 3 8m-3-8V4m0 6h6"/></svg>
+        </button>
+        <button id="fullscreen" type="button" aria-label="Toggle fullscreen" title="Toggle fullscreen">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></svg>
+        </button>
+      </div>
+      <div class="touch-controls" id="touch-controls" aria-label="Move along the scan">
+        <button id="back" aria-label="Move back" type="button">↓</button>
+        <button id="forward" aria-label="Move forward" type="button">↑</button>
+      </div>
+    </main>
+    <footer>
+      <span id="help">Drag to look · W/S to move through the scan · A/D to sidestep</span>
+      <span id="notice" role="status"></span>
+    </footer>
+  </div>
+  <script type="module" src="./app.js"></script>
 </body>
 </html>

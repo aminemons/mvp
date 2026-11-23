@@ -1,0 +1,16 @@
+[
+  {
+    "id": "tour-1",
+    "name": "Courtyard residence",
+    "coverage": "Living and dining walkthrough \u00b7 partial property scan",
+    "mesh": "./assets/scans/a.glb",
+    "track": "./assets/scans/a.json"
+  },
+  {
+    "id": "tour-2",
+    "name": "Tiled residence",
+    "coverage": "Front rooms walkthrough \u00b7 partial property scan",
+    "mesh": "./assets/scans/b.glb",
+    "track": "./assets/scans/b.json"
+  }
+]
