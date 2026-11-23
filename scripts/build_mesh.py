@@ -61,18 +61,18 @@ def track(frames, work, threads, exhaustive):
     return models, output
 
 
-def build_surface(frames, model, work, openmvs, threads):
+def build_surface(frames, model, work, openmvs, threads, resolution=640, faces=85000):
     work.mkdir()
     colmap.undistort_images(work, model, frames, num_threads=threads)
     mesh_steps = [
         ["InterfaceCOLMAP", "-i", ".", "--image-folder", "images", "-o", "scene.mvs"],
         ["DensifyPointCloud", "-i", "scene.mvs", "-o", "dense.mvs",
-         "--resolution-level", "0", "--max-resolution", "640", "--min-resolution", "320",
+         "--resolution-level", "0", "--max-resolution", str(resolution), "--min-resolution", "320",
          "--sub-resolution-levels", "1", "--number-views", "4", "--number-views-fuse", "2",
          "--geometric-iters", "1", "--iters", "2",
          "--fusion-depth-diff-threshold", "0.02", "--fusion-reprojection-threshold", "1.6"],
         ["ReconstructMesh", "-i", "dense.mvs", "-o", "mesh.ply",
-         "--target-face-num", "85000", "--remove-spurious", "14", "--close-holes", "0",
+         "--target-face-num", str(faces), "--remove-spurious", "14", "--close-holes", "0",
          "--smooth", "1"],
     ]
     for executable, *args in mesh_steps:

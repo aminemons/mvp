@@ -1,8 +1,39 @@
-# Vyral Spaces
+# Vyral Spaces Studio
 
-[Open the live 3D tour](https://vyral-spaces-mvp.vercel.app/)
+[Open the hosted Studio](https://vyral-spaces-mvp.vercel.app/)
 
-Vyral Spaces renders a single textured 3D mesh per property. Drag to look around, use WASD or the arrow keys to move relative to the direction you face. The wheel steps forward or back. On touch screens, hold the on-screen arrows to walk. Orbit shows the mesh from outside. The inset in Walk mode plots the actual tracked camera route.
+Build a 3D tour from your footage and inspect the result in an interactive browser viewer. The local worker runs on CPU and uses FFmpeg, COLMAP, OpenMVS, Embree and glTF mesh compression. The hosted site opens exported tours and shows setup. It has no reconstruction worker.
+
+## Try it yourself
+
+1. Start Docker Desktop on Windows, or Docker with Compose on Linux. This worker image uses Linux x86-64.
+2. Clone this repository or extract [the project ZIP](https://github.com/aminemons/mvp/archive/refs/heads/main.zip). Open a terminal in the extracted project folder.
+3. Run the command below and open [the local Studio](http://127.0.0.1:8080/).
+
+```sh
+docker compose up --build
+```
+
+Choose one original video or 12–180 overlapping photos, enter a tour name and select **Build tour**. Photo files are processed in natural filename order. The worker shows sampling, camera tracking, meshing, texturing and packaging in the job panel. A job that passes the checks lets you **Explore tour** and **Download GLB**. The GLB embeds its textures and camera route. Use **Open a tour file** in the hosted or local viewer to open it in the browser.
+
+Video limit is 1 GB. Photo sets may total 500 MB. The worker defaults to four CPU threads, processes one scan at a time, and stores captures and results in a local Docker volume. The first build downloads the open-source dependencies. The browser viewer loads Three.js from jsDelivr. Source footage is never sent to Vercel.
+
+## Capture and quality
+
+Start with one well-lit room. Make a slow pass, shift sideways and keep features in view across neighboring frames. Film the corners, floor, and both sides of doorways. Keep one lens and use the original files. For photos, use the same orientation and dimensions throughout the set.
+
+The worker screens for resolution and blur, then measures how many frames align in a single reconstruction and how much of the textured mesh is visible from sampled camera poses. Those checks screen for failed scans. Always inspect the view and walk path before sharing. Lighting, texture quality, lenses, and capture overlap affect the result, and the exported scale is relative.
+
+## Linux without Docker
+
+Install FFmpeg, the OpenMVS 2.4.0 Linux binaries, and `gltfpack@1.0.0` (available via npm). Install the Python dependencies and start the same local worker.
+
+```sh
+python -m pip install -r requirements-studio.txt
+python scripts/studio_server.py --openmvs /path/to/openmvs
+```
+
+The old `#tour-1` and `#tour-2` links still open the sample scans. Those samples came from compressed phone footage and show the limitations of incomplete capture.
 
 ## Reconstruction results
 
@@ -14,37 +45,3 @@ Both MP4s are portrait 360 × 640 WhatsApp recordings. Camera intrinsics and pos
 | Tiled residence | 173 | 44 | 55,684 | 71,305 | Front rooms, 1.2–4.8 s of capture |
 
 The geometry has arbitrary scale. Windows, reflections, unobserved surfaces, and rooms without enough overlapping viewpoints have gaps. Walk mode bounds position and viewing angles around the recovered camera route. It checks for collisions with the reconstructed mesh. Orbit exposes the entire recovered mesh and makes gaps visible. The two source properties have independent reconstructions.
-
-## Run the viewer
-
-```bash
-python -m http.server 8080
-```
-
-Open <http://localhost:8080>. The viewer uses pinned Three.js modules from jsDelivr. WebGL2 renders at full resolution, with a lower-resolution CPU rasterizer for browsers without WebGL. Meshes, texture atlases and routes are served as static files. The historic `/scan.html` URL redirects to the current viewer.
-
-## Build a scan from source footage
-
-Use FFmpeg, Python with `pycolmap==4.2.1`, NumPy, SciPy, Pillow, trimesh and embreex, [OpenMVS 2.4.0](https://github.com/cdcseacave/openMVS/releases/tag/v2.4.0), and `gltfpack@1.0.0`.
-
-```bash
-python scripts/build_mesh.py capture.mp4 work/pilot --openmvs /path/to/openmvs
-python scripts/project_atlas.py work/pilot/mvs --hero 20.5
-python scripts/package_scan.py \
-  --model work/pilot/sparse/0 --mvs work/pilot/mvs \
-  --output assets/scans/pilot --first 19.5 --last 33.8 --start 20.5
-```
-
-For depth completion, install ONNX Runtime and OpenCV, then run `python scripts/complete_depth.py work/pilot/mvs --model depth-anything-v2-small.onnx --frames 124 121 127 --output work/pilot/mvs/completed.ply`. Choose registered frames from the intended region and pass `--mesh work/pilot/mvs/completed.ply` to `project_atlas.py`. Use the [Depth Anything V2 Small ONNX model](https://huggingface.co/onnx-community/depth-anything-v2-small/tree/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx).
-
-To enable view-dependent texturing, export camera details and visibility with `scripts/export_projections.py`. Use the same mesh, reference-frame interval, and hero time as the atlas bake. Point the property manifest’s `views` field to the shared basename of the resulting JSON and PNG.
-
-Use the COLMAP component printed by the first command. Inspect the geometry and camera path before choosing the `--first`, `--last` and `--start` times. An index entry in `assets/scans/index.json` binds the verified mesh and route to the property picker. The older GitHub Actions workflow targets the retired point-cloud format and is independent of this mesh build.
-
-## Capture a more complete tour
-
-Use original, full-resolution footage with one lens and steady exposure. Walk a slow loop per room and move sideways while looking at each wall so adjacent views record real parallax. Include the floor, ceiling, and corners. Record both sides of each doorway and walk through it without cutting. Revisit the first viewpoint before ending the capture.
-
-A 360° camera can record additional high-resolution color coverage. Capture at multiple positions, then register the panoramic views to the same reconstructed geometry. A single panorama can provide a sharp look-around from its capture point. Movement between capture points requires a supported 3D surface and overlapping views. The current example uses overlapping phone frames as the color source.
-
-COLMAP + OpenMVS are the CPU mesh pipeline exercised here. OpenMVG + OpenMVS and MicMac are alternative CPU photogrammetry stacks. OpenSplat can train Gaussian splats on CPU, with a substantial runtime cost. A splat can improve captured appearance, and a separate mesh can supply walk collision.

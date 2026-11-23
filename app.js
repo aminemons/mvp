@@ -279,22 +279,82 @@ function getId() {
   return catalog.find((item) => item.id === id)?.id || catalog[0].id;
 }
 
+function portableMetadata(bytes) {
+  if (bytes.byteLength < 28 || bytes.byteLength > 128 * 1024 ** 2) {
+    throw new Error("Select a Vyral GLB up to 128 MB.");
+  }
+  const header = new DataView(bytes);
+  const size = header.getUint32(12, true);
+  if (header.getUint32(0, true) !== 0x46546c67 || header.getUint32(4, true) !== 2
+      || header.getUint32(8, true) !== bytes.byteLength || size > bytes.byteLength - 28
+      || header.getUint32(16, true) !== 0x4e4f534a) {
+    throw new Error("This is not a valid GLB file.");
+  }
+  const doc = JSON.parse(new TextDecoder().decode(new Uint8Array(bytes, 20, size)));
+  const data = doc?.extras?.vyralTour;
+  const vector = (value, length) => Array.isArray(value) && value.length === length && value.every(Number.isFinite);
+  const quaternion = (value) => vector(value, 4) && Math.abs(Math.hypot(...value) - 1) < 0.02;
+  if (data?.version !== 1 || typeof data.name !== "string" || !quaternion(data.alignment)
+      || !vector(data.center, 3) || !Number.isFinite(data.radius) || data.radius <= 0
+      || !Number.isFinite(data.speed) || data.speed <= 0 || !Array.isArray(data.poses)
+      || data.poses.length < 2 || data.poses.length > 180 || !Number.isInteger(data.start)
+      || data.start < 0 || data.start >= data.poses.length
+      || data.poses.some((pose) => !vector(pose?.p, 3) || !quaternion(pose?.q))) {
+    throw new Error("This GLB is missing the Vyral camera route. Use a file exported by Studio.");
+  }
+  const buffers = doc.buffers;
+  const hasInternalBuffers = Array.isArray(buffers) && buffers.length >= 1 && buffers.length <= 2
+    && buffers.every((buffer, index) => buffer && !("uri" in buffer)
+      && (index === 0 || buffer.extensions?.EXT_meshopt_compression?.fallback === true));
+  if (!hasInternalBuffers || !Array.isArray(doc.images) || !doc.images.length
+      || doc.images.some((entry) => !entry || "uri" in entry || !Number.isInteger(entry.bufferView))) {
+    throw new Error("The tour must contain its mesh and textures in a single file.");
+  }
+  return data;
+}
+
+function fillPropertyOptions() {
+  $("property").replaceChildren(...catalog.map(({ id, name }) => new Option(name, id)));
+}
+
+async function readTour(entry) {
+  if (entry.bundle || entry.file) {
+    const bytes = entry.file ? await entry.file.arrayBuffer() : await fetch(entry.bundle).then((response) => {
+      if (!response.ok) throw new Error("The local job is unavailable. Open it from the local Studio.");
+      const length = Number(response.headers.get("Content-Length"));
+      if (length > 128 * 1024 ** 2) throw new Error("The tour is larger than the viewer limit.");
+      return response.arrayBuffer();
+    });
+    const metadata = portableMetadata(bytes);
+    return [metadata, await loader.parseAsync(bytes, "")];
+  }
+  return Promise.all([
+    fetch(entry.track).then((response) => {
+      if (!response.ok) throw new Error("Camera route unavailable");
+      return response.json();
+    }),
+    loader.loadAsync(entry.mesh),
+  ]);
+}
+
 async function load(id) {
   const ticket = ++request;
   stop();
   $("property").value = id;
+  $("share").hidden = id === "imported" || id === "local-job";
   setStatus("Loading 3D scan…");
   const entry = catalog.find((item) => item.id === id);
   $("name").textContent = entry.name;
   $("coverage").textContent = entry.coverage;
   try {
-    const [metadata, gltf] = await Promise.all([
-      fetch(entry.track).then((response) => {
-        if (!response.ok) throw new Error("Camera route unavailable");
-        return response.json();
-      }),
-      loader.loadAsync(entry.mesh),
-    ]);
+    const [metadata, gltf] = await readTour(entry);
+    if ((entry.file || entry.bundle) && ticket === request) {
+      entry.name = metadata.name;
+      $("name").textContent = metadata.name;
+      $("coverage").textContent = "Studio reconstruction · review before sharing";
+      fillPropertyOptions();
+      $("property").value = entry.id;
+    }
     let projection;
     if (entry.views && ticket === request) {
       try {
@@ -339,7 +399,7 @@ async function load(id) {
   } catch (error) {
     if (ticket === request) {
       console.error("Scan load failed", error);
-      setStatus("This scan could not load.", true);
+      setStatus(entry.bundle || entry.file ? error.message : "This scan could not load.", true);
     }
   }
 }
@@ -361,7 +421,7 @@ $("fullscreen").onclick = async () => {
 };
 $("share").onclick = async () => {
   try {
-    await navigator.clipboard.writeText(new URL(`#${getId()}`, location.href).href);
+    await navigator.clipboard.writeText(new URL(`./viewer.html#${getId()}`, location.href).href);
     notify("Tour link copied");
   } catch {
     notify("Copy the address to share this tour.");
@@ -417,13 +477,60 @@ for (const [id, command] of [["forward", "ArrowUp"], ["back", "ArrowDown"], ["ri
   }
 }
 
+const dialog = $("import-dialog");
+const tourFile = $("tour-file");
+$("open-file").onclick = () => {
+  $("import-error").textContent = "";
+  tourFile.value = "";
+  dialog.showModal();
+};
+dialog.addEventListener("close", () => {
+  if (catalog && !current && location.hash === "#import") {
+    history.replaceState(null, "", "./viewer.html");
+    load(getId());
+  }
+});
+tourFile.onchange = async () => {
+  const file = tourFile.files[0];
+  if (!file) return;
+  tourFile.disabled = true;
+  $("import-error").textContent = "Checking the tour file…";
+  try {
+    if (file.size > 128 * 1024 ** 2) throw new Error("Choose an exported Vyral GLB up to 128 MB.");
+    const bytes = await file.arrayBuffer();
+    const metadata = portableMetadata(bytes);
+    catalog = catalog.filter((entry) => entry.id !== "imported");
+    catalog.unshift({ id: "imported", name: metadata.name, file });
+    fillPropertyOptions();
+    history.replaceState(null, "", "./viewer.html#imported");
+    dialog.close();
+    await load("imported");
+  } catch (error) {
+    $("import-error").textContent = error.message;
+  } finally {
+    tourFile.disabled = false;
+    tourFile.value = "";
+  }
+};
+
 try {
   initRenderer();
   const response = await fetch("./assets/scans/index.json");
   if (!response.ok) throw new Error("Scan manifest unavailable");
   catalog = await response.json();
-  $("property").replaceChildren(...catalog.map(({ id, name }) => new Option(name, id)));
-  await load(getId());
+  const job = new URLSearchParams(location.search).get("job");
+  if (job && /^[0-9a-f]{32}$/.test(job)) {
+    catalog.unshift({ id: "local-job", name: "Studio scan", bundle: `./api/jobs/${job}/result.glb` });
+  }
+  fillPropertyOptions();
+  if (location.hash === "#import") {
+    setStatus("Choose a tour file to begin.");
+    viewer.setAttribute("aria-busy", "false");
+    $("progress").querySelector(".spinner").hidden = true;
+    $("import-dialog").showModal();
+  } else {
+    await load(getId());
+  }
 } catch (error) {
   console.error("Tour initialization failed", error);
   setStatus("The 3D viewer could not start.", true);

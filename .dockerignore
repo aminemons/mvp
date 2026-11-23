@@ -1,0 +1,4 @@
+.git
+.studio-data
+**/__pycache__
+**/*.pyc

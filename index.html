@@ -2,64 +2,101 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#191b1e">
-  <meta name="description" content="Move through a 3D reconstruction of real property footage.">
-  <title>Vyral Spaces | 3D property tour</title>
-  <link rel="stylesheet" href="./styles.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Create and inspect a 3D property tour from your own video or photos.">
+  <meta name="theme-color" content="#151a17">
+  <title>Vyral Spaces Studio</title>
   <link rel="icon" href="data:,">
-  <script type="importmap">
-    {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.175.0/examples/jsm/"}}
+  <link rel="stylesheet" href="./studio.css">
+  <script>
+    if (/^#tour-0?[12]$/.test(location.hash)) location.replace("./viewer.html" + location.hash);
   </script>
+  <script type="module" src="./studio.js"></script>
 </head>
 <body>
-  <div class="app">
-    <header class="bar">
-      <a class="brand" href="./" aria-label="Vyral Spaces home"><span class="brand-icon" aria-hidden="true">V</span><span>Vyral <strong>Spaces</strong></span></a>
-      <label class="property"><span>Property</span>
-        <select id="property" aria-label="Property"></select>
-      </label>
-      <button class="share" id="share" type="button" title="Copy tour link" aria-label="Copy tour link">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a4 4 0 0 0 6 0l4-4a4 4 0 0 0-6-6l-2 2m2 6a4 4 0 0 0-6 0l-4 4a4 4 0 0 0 6 6l2-2"/></svg>
-      </button>
-    </header>
-    <main id="viewer" class="scan-unavailable" aria-busy="true">
-      <canvas id="scene" aria-label="Interactive three-dimensional property scan"></canvas>
-      <div class="shade"></div>
-      <section class="heading" aria-labelledby="name">
-        <p class="caption">3D property scan</p>
-        <h1 id="name">Vyral Spaces</h1>
-        <p id="coverage"></p>
-      </section>
-      <div class="progress" id="progress" role="status"><span class="spinner"></span><span id="progress-text">Loading 3D scan…</span><button id="retry" type="button" hidden>Retry</button></div>
-      <aside class="route" id="route-panel" aria-label="Camera route">
-        <div class="route-head"><span>Capture path</span></div>
-        <canvas id="map" width="168" height="103" aria-label="Top-down projection of the tracked camera path"></canvas>
-      </aside>
-      <div class="controls" id="controls">
-        <div class="modes" role="group" aria-label="Viewing mode">
-          <button id="walk" type="button" aria-pressed="true">Walk</button>
-          <button id="orbit" type="button" aria-pressed="false">Orbit</button>
+  <header class="masthead">
+    <a class="brand" href="./" aria-label="Vyral Spaces Studio home"><span class="monogram" aria-hidden="true">V</span><span>Vyral Spaces</span></a>
+    <nav aria-label="Tour navigation">
+      <a href="./viewer.html#tour-1">Example tour</a>
+      <a class="quiet-button" href="./viewer.html#import">Open a tour file</a>
+    </nav>
+  </header>
+  <main>
+    <section class="intro">
+      <div>
+        <h1>Scan a space.</h1>
+        <p>Turn your own footage into an interactive 3D tour.</p>
+      </div>
+      <div class="connection" id="connection" role="status"><span></span>Checking for a local worker</div>
+    </section>
+
+    <div class="workspace">
+      <section class="panel capture">
+        <div class="panel-heading">
+          <h2>New scan</h2>
+          <p>One continuous video or an overlapping set of photos.</p>
         </div>
-        <button id="reset" type="button" aria-label="Reset view" title="Reset view">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 3 8m-3-8V4m0 6h6"/></svg>
-        </button>
-        <button id="fullscreen" type="button" aria-label="Toggle fullscreen" title="Toggle fullscreen">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></svg>
-        </button>
-      </div>
-      <div class="touch-controls" id="touch-controls" aria-label="Move along the scan">
-        <button id="forward" aria-label="Move forward" type="button">↑</button>
-        <button id="left" aria-label="Sidestep left" type="button">←</button>
-        <button id="back" aria-label="Move back" type="button">↓</button>
-        <button id="right" aria-label="Sidestep right" type="button">→</button>
-      </div>
-    </main>
-    <footer>
-      <span id="help">Drag to look · WASD or arrows to move</span>
-      <span id="notice" role="status"></span>
-    </footer>
-  </div>
-  <script type="module" src="./app.js"></script>
+        <form id="capture-form" hidden>
+          <label for="name">Tour name</label>
+          <input id="name" name="name" maxlength="90" placeholder="e.g. Living room" autocomplete="off">
+          <div class="mode" role="group" aria-label="Capture type">
+            <button id="video-mode" aria-pressed="true" type="button">Video</button>
+            <button id="photo-mode" aria-pressed="false" type="button">Photos</button>
+          </div>
+          <label class="drop" id="drop">
+            <span class="drop-icon" aria-hidden="true">↑</span>
+            <strong id="selected-label">Choose or drop your video</strong>
+            <small id="file-hint">One MP4, MOV, M4V, MKV or WebM · up to 1 GB</small>
+            <input id="capture-files" type="file" accept=".mp4,.mov,.m4v,.mkv,.webm">
+          </label>
+          <button id="create" class="primary" type="submit" disabled>Build tour</button>
+          <p class="inline-status" id="upload-status" role="status"></p>
+        </form>
+        <div class="setup" id="setup" hidden>
+          <h3>Start the local worker</h3>
+          <p>The worker reconstructs your capture on your computer. Your source footage and private job history stay there.</p>
+          <ol>
+            <li>Download and extract the project on a computer with Docker running.</li>
+            <li>Open a terminal inside the project and run the command below.</li>
+            <li>Open the local Studio to choose footage and build your tour.</li>
+          </ol>
+          <div class="command"><code>docker compose up --build</code><button type="button" id="copy-command" aria-label="Copy setup command">Copy</button></div>
+          <div class="setup-actions">
+            <a class="primary button-link" href="http://127.0.0.1:8080/">Open local Studio ↗</a>
+            <a class="quiet-button" href="https://github.com/aminemons/mvp/archive/refs/heads/main.zip">Download project</a>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel queue">
+        <div class="panel-heading">
+          <h2 id="queue-heading">Scan jobs</h2>
+          <p id="queue-description">Reconstruction and quality checks appear here.</p>
+        </div>
+        <div id="job-list" class="jobs"></div>
+        <div id="job-view" class="job-detail" hidden>
+          <h3 id="job-name"></h3>
+          <div class="job-state" id="job-state" role="status"></div>
+          <progress id="job-progress" max="5" value="0" hidden></progress>
+          <p id="job-message" class="inline-status"></p>
+          <dl id="metrics" class="metrics"></dl>
+          <div id="result-actions" class="result-actions" hidden>
+            <a id="view-result" class="primary button-link">Explore tour</a>
+            <a id="download-result" class="quiet-button">Download GLB</a>
+          </div>
+          <details id="log-panel" hidden><summary>Worker log</summary><pre id="job-log"></pre></details>
+        </div>
+        <div id="offline-note" class="offline-note" hidden>
+          <p>Once the local worker is running, you can sample frames, track cameras, reconstruct a textured mesh and export a portable <strong>.glb</strong>.</p>
+          <p>The hosted viewer can open the exported file directly in your browser.</p>
+        </div>
+      </aside>
+    </div>
+    <section class="capture-note" aria-labelledby="capture-tips">
+      <h2 id="capture-tips">What makes a usable scan?</h2>
+      <p>Start with one room. Keep the original camera files, use one lens, move sideways as you film, and cover corners, floor and doorways from multiple positions.</p>
+    </section>
+  </main>
+  <footer><a href="https://github.com/aminemons/mvp">Source &amp; setup</a><span>CPU photogrammetry · COLMAP and OpenMVS</span></footer>
 </body>
 </html>

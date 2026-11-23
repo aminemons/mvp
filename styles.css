@@ -70,3 +70,14 @@ footer { display: flex; align-items: center; justify-content: space-between; gap
 }
 @media (max-height: 480px) { .route { display: none; } }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
+
+.open-file { width: auto; padding: 0 10px; white-space: nowrap; font-size: 13px; }
+#import-dialog { width: min(430px, calc(100vw - 30px)); margin: auto; padding: 22px; color: #eee; background: #20262a; border: 1px solid #606864; border-radius: 12px; }
+#import-dialog::backdrop { background: #101416a8; }
+#import-dialog h2 { margin: 0; font-size: 22px; }
+#import-dialog p { color: #bfc7c2; }
+#import-dialog label { display: block; font-size: 13px; margin: 12px 0 5px; }
+#import-dialog input { width: 100%; }
+#import-dialog button { padding: 7px 12px; border: 1px solid #616765; border-radius: 5px; background: #303638; }
+#import-error { min-height: 1.2em; }
+@media (max-width: 550px) { .open-file { font-size: 11px; padding: 0 6px; } #property { max-width: 31vw; } }

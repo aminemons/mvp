@@ -1,0 +1,11 @@
+services:
+  studio:
+    build: .
+    platform: linux/amd64
+    command: ["--threads", "${VYRAL_THREADS:-4}"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - scans:/data
+volumes:
+  scans:

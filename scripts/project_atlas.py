@@ -96,6 +96,40 @@ def write_glb(path, positions, texcoords, indices, material_texture):
                      + header + struct.pack('<II', len(blob), 0x004E4942) + blob)
 
 
+def bake_atlas(work, model, mesh, views, preferred, atlas_edge=None):
+    assignments, projections = assign_views(mesh, views, preferred, model)
+    camera = model.cameras[views[0].camera_id]
+    native = np.array([camera.width, camera.height])
+    unit_w, unit_h = native
+    columns = int(np.ceil(np.sqrt(len(views) * unit_h / unit_w)))
+    rows = int(np.ceil(len(views) / columns))
+    if atlas_edge:
+        scale = min(1, atlas_edge / max(columns * unit_w, rows * unit_h))
+        unit_w, unit_h = np.maximum(1, np.floor(native * scale)).astype(int)
+    tile_scale = np.array([unit_w, unit_h]) / native
+    atlas_w, atlas_h = columns * unit_w, rows * unit_h
+    atlas = Image.new('RGB', (atlas_w, atlas_h), (42, 42, 46))
+    retained = np.flatnonzero(assignments >= 0)
+    if not len(retained):
+        raise RuntimeError("None of the mesh faces have a visible reference view.")
+    selected_faces = np.asarray(mesh.faces[retained])
+    positions = np.asarray(mesh.vertices[selected_faces.reshape(-1)], dtype='<f4')
+    texcoords = np.zeros((len(retained), 3, 2), dtype='<f4')
+    for i, view in enumerate(views):
+        ox, oy = i % columns * unit_w, i // columns * unit_h
+        with Image.open(work / 'images' / view.name) as image:
+            if image.size != (unit_w, unit_h):
+                image = image.resize((unit_w, unit_h), Image.Resampling.LANCZOS)
+            atlas.paste(image, (ox, oy))
+        mask = assignments[retained] == i
+        texcoords[mask] = ((projections[i][selected_faces[mask]] + 0.5) * tile_scale + [ox, oy]) / [atlas_w, atlas_h]
+    print(f'{len(retained)}/{len(assignments)} observed triangles with {len(views)} reference views, {atlas_w}×{atlas_h} atlas', flush=True)
+    atlas.save(work / 'projected.jpg', quality=91, optimize=True, subsampling=0)
+    write_glb(work / 'projected.glb', positions, texcoords.reshape(-1, 2),
+              np.arange(len(positions), dtype='<u4'), 'projected.jpg')
+    return mesh.submesh([retained], append=True, repair=False)
+
+
 def main():
     parser = argparse.ArgumentParser(description='Bake real views onto the reconstructed texture mesh.')
     parser.add_argument('workspace', type=Path)
@@ -112,29 +146,7 @@ def main():
     model = colmap.Reconstruction(work / 'sparse')
     mesh = trimesh.load_mesh(args.mesh or work / 'mesh.ply', process=False)
     views, preferred = pick_views(model, args.first, args.last, args.interval, args.hero, args.fps)
-    assignments, projections = assign_views(mesh, views, preferred, model)
-    camera = model.cameras[views[0].camera_id]
-    unit_w, unit_h = camera.width, camera.height
-    columns = int(np.ceil(np.sqrt(len(views) * unit_h / unit_w)))
-    rows = int(np.ceil(len(views) / columns))
-    atlas_w, atlas_h = columns * unit_w, rows * unit_h
-    atlas = Image.new('RGB', (atlas_w, atlas_h), (42, 42, 46))
-    retained = np.flatnonzero(assignments >= 0)
-    if not len(retained):
-        raise RuntimeError("None of the mesh faces have a visible reference view.")
-    selected_faces = np.asarray(mesh.faces[retained])
-    positions = np.asarray(mesh.vertices[selected_faces.reshape(-1)], dtype='<f4')
-    texcoords = np.zeros((len(retained), 3, 2), dtype='<f4')
-    for i, view in enumerate(views):
-        ox, oy = i % columns * unit_w, i // columns * unit_h
-        with Image.open(work / 'images' / view.name) as image:
-            atlas.paste(image, (ox, oy))
-        mask = assignments[retained] == i
-        texcoords[mask] = (projections[i][selected_faces[mask]] + [ox + 0.5, oy + 0.5]) / [atlas_w, atlas_h]
-    print(f'{len(retained)}/{len(assignments)} observed triangles with {len(views)} reference views, {atlas_w}×{atlas_h} atlas', flush=True)
-    atlas.save(work / 'projected.jpg', quality=91, optimize=True, subsampling=0)
-    write_glb(work / 'projected.glb', positions, texcoords.reshape(-1, 2),
-              np.arange(len(positions), dtype='<u4'), 'projected.jpg')
+    bake_atlas(work, model, mesh, views, preferred)
 
 
 if __name__ == '__main__':
