@@ -1,31 +1,33 @@
-# Vyral Spaces — interactive walkthrough MVP
+# Vyral Spaces — CPU-stitched interactive virtual-tour MVP
 
-Live demo: https://vyral-spaces-mvp.vercel.app
+**Live:** https://vyral-spaces-mvp.vercel.app/
 
-A zero-GPU, static prototype demonstrating a real-estate browsing experience using **two actual phone recordings**, one per property.
+This is an interactive property walkthrough prototype made entirely from the two original portrait MP4 videos supplied to the project.
 
-## Current features
-- Production-hosted, responsive video-tour viewer
-- Accurate *timeline* links to manually inspected room stops (not synthesized 360)
-- Play / pause / seek / sound / fullscreen / next and previous room
-- Two switchable property studies, with shareable direct links `#tour-01` and `#tour-02`
-- Tap-to-navigate, **illustrative and not-to-scale** floor plan and CSS isometric room concept
-- Real uploaded footage hosted separately on a media CDN; no serverless transcoding and no GPU
+## What's actually implemented
+- **15 distinct room viewpoints** across **two separate apartments**.
+- 360-style **look-around** viewer with drag-to-pan and clickable room-transition hotspot using [Pannellum](https://pannellum.org/).
+- CPU-generated partial panoramas using **OpenCV Stitcher** from short sweeps in the supplied phone videos. When panorama stitching failed, a representative original video frame is used.
+- Room thumbnails, next/previous navigation, per-property scene maps (illustrative only), mobile controls, shareable per-room URLs.
+- Optionally compare each room with original uploaded phone video.
+- No paid 3D scan service, reconstruction GPU, or server application required to view a tour.
 
-## What it does not do
-These inputs are **360 × 640 portrait MP4 videos**, not 360° equirectangular captures, LiDAR scans or georeferenced floor plans. It is therefore technically impossible to derive a truthful, full Matterport-style dollhouse or complete spherical panoramas from these two clips alone. The spatial layouts are conceptual navigation aids; **they are not measured property geometry**.
+## Quality limitations — important
+**The source files are 360 × 640 portrait phone recordings, not spherical 360-degree images.** The panoramas stitched from their limited viewing angles are partial; they cannot look behind the camera unless the footage captured those surfaces. Some stops use individual camera frames. No physical depth, accurate floor geometry, photogrammetric reconstruction, or Matterport-grade 3D dollhouse exists in this demo. The 'Tour map' is solely an illustrative navigation aid and does not represent measured architecture. Some stitching seams or distortion may occur.
 
-Do not present this as a Matterport-equivalent 3D scan, production camera model, or measured property plan.
+## Stack
+- One HTML/CSS/JS file in `index.html`.
+- Pannellum 2.5.6 from jsDelivr for interactive panoramic display.
+- Real panorama images hosted on media CDN; referenced directly in `index.html`.
+- Original two phone videos hosted on media CDN.
+- Vercel static hosting integrated with GitHub `main`.
 
-## Run
-Open `index.html` in a modern browser or use any static web server. There is no build step, backend, API key or GPU requirement. Hosted media URLs in `index.html` require an internet connection.
+## Capture-to-tour production workflow
+1. Film from stationary pivots, or ideally capture actual spherical equirectangular 360 photos per room.
+2. Verify resolution, completeness and camera location.
+3. Stitch on CPU with OpenCV or Hugin, inspect seams.
+4. Create tour nodes, map real connections and add navigation hotspots.
+5. Obtain accurate floor plan measurements separately for a genuine dollhouse.
+6. QA on iPhone/Android mobile data.
 
-## Next production-grade milestone
-1. Collect 360° equirectangular photos at linked camera positions, plus a dimensioned floor plan.
-2. Add CPU-supported quality validation, panorama tiling and a tour-editing interface for room links.
-3. Turn the measured plan into a GLB apartment with Blender or other open-source tooling.
-4. Unify panorama positions, dollhouse and floor plan under the same coordinate frame.
-5. Test export, mobile memory/bandwidth, and property consent before offering client delivery.
-
-### Provenance
-The media are the two phone videos supplied for this MVP. No property imagery or room dimensions were invented as if captured by sensors.
+The media are openly accessible to visitors of the linked public demo. Only publish properties with appropriate owner/occupant permission.
