@@ -7,6 +7,7 @@
   <meta name="description" content="Move through a 3D reconstruction of real property footage.">
   <title>Vyral Spaces | 3D property tour</title>
   <link rel="stylesheet" href="./styles.css">
+  <link rel="icon" href="data:,">
   <script type="importmap">
     {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.175.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.175.0/examples/jsm/"}}
   </script>
@@ -32,7 +33,7 @@
       </section>
       <div class="progress" id="progress" role="status"><span class="spinner"></span><span id="progress-text">Loading 3D scan…</span><button id="retry" type="button" hidden>Retry</button></div>
       <aside class="route" id="route-panel" aria-label="Camera route">
-        <div class="route-head"><span>Scan path</span><span id="route-time"></span></div>
+        <div class="route-head"><span>Capture path</span></div>
         <canvas id="map" width="168" height="103" aria-label="Top-down projection of the tracked camera path"></canvas>
       </aside>
       <div class="controls" id="controls">
@@ -40,7 +41,6 @@
           <button id="walk" type="button" aria-pressed="true">Walk</button>
           <button id="orbit" type="button" aria-pressed="false">Orbit</button>
         </div>
-        <button id="play" class="primary" type="button" aria-pressed="false"><span id="play-icon" aria-hidden="true">▶</span><span id="play-label">Play tour</span></button>
         <button id="reset" type="button" aria-label="Reset view" title="Reset view">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10a9 9 0 1 1 3 8m-3-8V4m0 6h6"/></svg>
         </button>
@@ -49,12 +49,14 @@
         </button>
       </div>
       <div class="touch-controls" id="touch-controls" aria-label="Move along the scan">
-        <button id="back" aria-label="Move back" type="button">↓</button>
         <button id="forward" aria-label="Move forward" type="button">↑</button>
+        <button id="left" aria-label="Sidestep left" type="button">←</button>
+        <button id="back" aria-label="Move back" type="button">↓</button>
+        <button id="right" aria-label="Sidestep right" type="button">→</button>
       </div>
     </main>
     <footer>
-      <span id="help">Drag to look · W/S to move through the scan · A/D to sidestep</span>
+      <span id="help">Drag to look · WASD or arrows to move</span>
       <span id="notice" role="status"></span>
     </footer>
   </div>

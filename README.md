@@ -2,7 +2,7 @@
 
 [Open the live 3D tour](https://vyral-spaces-mvp.vercel.app/)
 
-Vyral Spaces renders a single textured 3D mesh per property. Drag to look around, use W/S or the wheel to move along captured routes, and use A/D to sidestep within the scanned corridor. On touch screens, hold the on-screen arrows to walk. Orbit shows the mesh from outside. The inset in Walk mode plots the actual tracked camera route.
+Vyral Spaces renders a single textured 3D mesh per property. Drag to look around, use WASD or the arrow keys to move relative to the direction you face. The wheel steps forward or back. On touch screens, hold the on-screen arrows to walk. Orbit shows the mesh from outside. The inset in Walk mode plots the actual tracked camera route.
 
 ## Reconstruction results
 
@@ -13,7 +13,7 @@ Both MP4s are portrait 360 × 640 WhatsApp recordings. Camera intrinsics and pos
 | Courtyard residence | 130 | 126 | 188,062 | 84,613 | Living and dining section, 19.5–33.8 s of capture |
 | Tiled residence | 173 | 44 | 55,684 | 66,534 | Front rooms, 1.2–4.8 s of capture |
 
-The geometry has arbitrary scale. Windows, reflections, unobserved surfaces, and rooms without enough overlapping viewpoints have gaps. Walk mode uses the best-supported sections of the recovered routes, with a small amount of lateral movement. Orbit exposes the entire recovered mesh and makes gaps visible. The two source properties have independent reconstructions.
+The geometry has arbitrary scale. Windows, reflections, unobserved surfaces, and rooms without enough overlapping viewpoints have gaps. Walk mode lets visitors move and steer freely within a volume around the best-supported sections of the recovered routes. It checks for collisions with the reconstructed mesh. Orbit exposes the entire recovered mesh and makes gaps visible. The two source properties have independent reconstructions.
 
 ## Run the viewer
 
@@ -21,7 +21,7 @@ The geometry has arbitrary scale. Windows, reflections, unobserved surfaces, and
 python -m http.server 8080
 ```
 
-Open <http://localhost:8080>. The viewer uses WebGL2 and pinned Three.js modules from jsDelivr. Meshes, texture atlases and routes are served as static files. The historic `/scan.html` URL redirects to the current viewer.
+Open <http://localhost:8080>. The viewer uses pinned Three.js modules from jsDelivr. WebGL2 renders at full resolution, with a lower-resolution CPU rasterizer for browsers without WebGL. Meshes, texture atlases and routes are served as static files. The historic `/scan.html` URL redirects to the current viewer.
 
 ## Build a scan from source footage
 

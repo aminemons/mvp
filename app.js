@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
+import { SoftwareRenderer } from "./software-renderer.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("scene");
@@ -25,17 +26,20 @@ let current;
 let request = 0;
 let frame = 0;
 let lastClock = 0;
-let distance = 0;
-let lateral = 0;
-let yaw = 0;
-let pitch = 0;
 let walking = true;
-let playing = false;
 let pointer = null;
-let touchDirection = 0;
 let noticeTimer;
 const held = new Set();
+const touchKeys = new Set();
 const direction = new THREE.Vector3();
+const right = new THREE.Vector3();
+const candidate = new THREE.Vector3();
+const movement = new THREE.Vector3();
+const closest = new THREE.Vector3();
+const ray = new THREE.Raycaster();
+const hit = [];
+const walkPosition = new THREE.Vector3();
+const walkRotation = new THREE.Euler(0, 0, 0, "YXZ");
 const keyCommands = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]);
 
 function setStatus(message, failed = false) {
@@ -55,9 +59,14 @@ function notify(message) {
 }
 
 function initRenderer() {
-  renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
-  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const context = canvas.getContext("webgl2", { antialias: true, alpha: false });
+  if (context) {
+    renderer = new THREE.WebGLRenderer({ canvas, context, antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 1.7));
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+  } else {
+    renderer = new SoftwareRenderer(canvas);
+  }
   orbit = new OrbitControls(camera, canvas);
   orbit.enableDamping = true;
   orbit.dampingFactor = 0.11;
@@ -84,41 +93,43 @@ function resize() {
   draw();
 }
 
-function makeRoute(data) {
-  const positions = data.map(({ p }) => vector(p));
-  const orientations = data.map(({ q }) => new THREE.Quaternion(...q).normalize());
-  const lengths = [0];
-  for (let i = 1; i < positions.length; i++) {
-    const step = positions[i].distanceTo(positions[i - 1]);
-    const turn = orientations[i].angleTo(orientations[i - 1]);
-    lengths.push(lengths.at(-1) + Math.max(step, turn * 0.28, 0.0001));
-  }
-  return { positions, orientations, lengths, total: lengths.at(-1) };
-}
-
-function pathPose(at) {
-  const { positions, orientations, lengths } = current.route;
-  let i = 0;
-  while (i < lengths.length - 2 && lengths[i + 1] < at) i++;
-  const t = clamp((at - lengths[i]) / (lengths[i + 1] - lengths[i]), 0, 1);
-  const position = positions[i].clone().lerp(positions[i + 1], t);
-  const orientation = orientations[i].clone().slerp(orientations[i + 1], t);
-  const seconds = THREE.MathUtils.lerp(current.poses[i].t, current.poses[i + 1].t, t);
-  return { position, orientation, seconds };
+function makeRoute(poses) {
+  const positions = poses.map(({ p }) => vector(p));
+  const segments = positions.slice(1).map((end, i) => new THREE.Line3(positions[i], end));
+  const box = new THREE.Box3().setFromPoints(positions);
+  return { positions, segments, box };
 }
 
 function placeCamera() {
-  const { position, orientation, seconds } = pathPose(distance);
-  direction.set(0, 0, -1).applyQuaternion(orientation);
-  const side = new THREE.Vector3().crossVectors(direction, up).normalize();
-  camera.position.copy(position).addScaledVector(side, lateral);
-  // Keep the horizon level when the visitor looks around.
-  const heading = Math.atan2(-direction.x, -direction.z);
-  const elevation = Math.asin(clamp(direction.y, -1, 1));
-  camera.rotation.set(clamp(elevation + pitch, -1.45, 1.45), heading + yaw, 0, "YXZ");
-  $("route-time").textContent = `${seconds.toFixed(1)} s`;
+  camera.position.copy(walkPosition);
+  camera.rotation.copy(walkRotation);
   drawMap();
   draw();
+}
+
+function walk(forward, sideways, step) {
+  direction.set(0, 0, -1).applyAxisAngle(up, walkRotation.y);
+  right.crossVectors(direction, up);
+  movement.copy(direction).multiplyScalar(forward).addScaledVector(right, sideways);
+  if (!movement.lengthSq()) return;
+  movement.normalize();
+  const clearance = current.radius * 0.009;
+  hit.length = 0;
+  ray.set(walkPosition, movement);
+  ray.near = 0.001;
+  ray.far = step + clearance;
+  ray.intersectObjects(current.meshes, false, hit);
+  const travel = hit.length ? Math.max(0, hit[0].distance - clearance) : step;
+  if (!travel) return;
+  candidate.copy(walkPosition).addScaledVector(movement, travel);
+  // The camera can leave the capture line within the observed area. Orbit mode can inspect the entire mesh.
+  const withinCoverage = current.route.segments.some((segment) => {
+    segment.closestPointToPoint(candidate, true, closest);
+    return closest.distanceToSquared(candidate) <= current.walkRadius ** 2;
+  });
+  if (!withinCoverage) return;
+  walkPosition.copy(candidate);
+  placeCamera();
 }
 
 function draw() {
@@ -126,12 +137,10 @@ function draw() {
 }
 
 function drawMap() {
-  const { positions } = current.route;
-  const xs = positions.map((p) => p.x);
-  const zs = positions.map((p) => p.z);
-  const minX = Math.min(...xs), minZ = Math.min(...zs);
-  const spanX = Math.max(...xs) - minX, spanZ = Math.max(...zs) - minZ;
-  const scale = Math.min((map.width - 20) / Math.max(spanX, 0.01), (map.height - 20) / Math.max(spanZ, 0.01));
+  const { positions, box } = current.route;
+  const minX = box.min.x - current.walkRadius, minZ = box.min.z - current.walkRadius;
+  const spanX = box.max.x - minX + current.walkRadius, spanZ = box.max.z - minZ + current.walkRadius;
+  const scale = Math.min((map.width - 18) / spanX, (map.height - 20) / spanZ);
   function project(p) {
     return [(map.width - spanX * scale) / 2 + (p.x - minX) * scale,
       (map.height - spanZ * scale) / 2 + (p.z - minZ) * scale];
@@ -160,21 +169,15 @@ function drawMap() {
   ctx.fill();
 }
 
-function setPlaying(value) {
-  playing = value;
-  $("play").setAttribute("aria-pressed", String(playing));
-  $("play-label").textContent = playing ? "Pause" : "Play tour";
-  $("play-icon").textContent = playing ? "Ⅱ" : "▶";
-}
-
 function stop() {
-  setPlaying(false);
   held.clear();
-  touchDirection = 0;
+  touchKeys.clear();
+  pointer = null;
 }
 
 function setMode(walk) {
   if (!current) return;
+  stop();
   walking = walk;
   orbit.enabled = !walk;
   $("walk").setAttribute("aria-pressed", String(walk));
@@ -182,12 +185,11 @@ function setMode(walk) {
   $("route-panel").hidden = !walk;
   $("touch-controls").hidden = !walk;
   $("help").textContent = walk
-    ? coarse.matches ? "Drag to look · Hold arrows to move" : "Drag to look · W/S to move along the scan · A/D to sidestep"
+    ? coarse.matches ? "Drag to look · Hold arrows to move" : "Drag to look · WASD or arrows to move · Wheel to step"
     : coarse.matches ? "Drag to orbit · Pinch to zoom" : "Drag to orbit · Scroll to zoom · Right-drag to pan";
   if (walk) {
     placeCamera();
   } else {
-    stop();
     const [x, y, z] = current.center;
     orbit.target.set(x, y, z);
     orbit.minDistance = current.radius * 0.08;
@@ -201,34 +203,26 @@ function setMode(walk) {
 
 function reset() {
   if (!current) return;
-  stop();
-  distance = current.route.lengths[current.start];
-  lateral = yaw = pitch = 0;
+  const pose = current.poses[current.start];
+  walkPosition.copy(vector(pose.p));
+  direction.set(0, 0, -1).applyQuaternion(new THREE.Quaternion(...pose.q).normalize());
+  walkRotation.set(Math.asin(clamp(direction.y, -1, 1)), Math.atan2(-direction.x, -direction.z), 0);
   setMode(walking);
 }
 
 function update(clock) {
   frame = 0;
-  const dt = Math.min((clock - lastClock) / 1000, 0.05);
-  lastClock = clock;
+  const dt = Math.min(Math.max((clock - lastClock) / 1000, 0), 0.05);
   if (!current) return;
   if (!walking) {
-    const changed = orbit.update();
-    if (changed) schedule();
+    if (orbit.update()) schedule();
     return;
   }
-  const keyboard = Number(held.has("KeyW") || held.has("ArrowUp"))
-    - Number(held.has("KeyS") || held.has("ArrowDown"));
-  const sidestep = Number(held.has("KeyD") || held.has("ArrowRight"))
-    - Number(held.has("KeyA") || held.has("ArrowLeft"));
-  const movement = playing ? 1 : keyboard || touchDirection;
-  if (movement || sidestep) {
-    distance = clamp(distance + movement * dt * current.speed, 0, current.route.total);
-    lateral = clamp(lateral + dt * sidestep * current.speed * 0.6, -current.width, current.width);
-    placeCamera();
-  }
-  if (playing && distance >= current.route.total) setPlaying(false);
-  if (playing || held.size || touchDirection) schedule();
+  const pressed = (key, arrow) => held.has(key) || held.has(arrow) || touchKeys.has(arrow);
+  const forward = Number(pressed("KeyW", "ArrowUp")) - Number(pressed("KeyS", "ArrowDown"));
+  const sideways = Number(pressed("KeyD", "ArrowRight")) - Number(pressed("KeyA", "ArrowLeft"));
+  if (dt > 0 && (forward || sideways)) walk(forward, sideways, dt * current.speed * 0.52);
+  if (held.size || touchKeys.size) schedule();
 }
 
 function schedule() {
@@ -280,8 +274,10 @@ async function load(id) {
       display.remove(current.model);
       dispose(current.model);
     }
+    const meshes = [];
     gltf.scene.traverse((object) => {
       if (!object.isMesh) return;
+      meshes.push(object);
       const source = object.material;
       object.material = new THREE.MeshBasicMaterial({
         map: source.map, color: source.color, vertexColors: source.vertexColors,
@@ -291,7 +287,10 @@ async function load(id) {
     });
     gltf.scene.quaternion.set(...metadata.alignment);
     display.add(gltf.scene);
-    current = { ...metadata, model: gltf.scene, route: makeRoute(metadata.poses) };
+    gltf.scene.updateMatrixWorld(true);
+    renderer.setMeshes?.(meshes);
+    current = { ...metadata, model: gltf.scene, meshes, route: makeRoute(metadata.poses),
+      walkRadius: metadata.radius * 0.19 };
     walking = true;
     reset();
     setStatus("");
@@ -306,21 +305,9 @@ async function load(id) {
 $("walk").onclick = () => setMode(true);
 $("orbit").onclick = () => setMode(false);
 $("reset").onclick = reset;
-$("play").onclick = () => {
-  if (!current) return;
-  if (playing) {
-    setPlaying(false);
-    return;
-  }
-  if (distance >= current.route.total - 0.01 || !walking || Math.abs(distance - current.route.lengths[current.start]) < 0.001) distance = 0;
-  lateral = yaw = pitch = 0;
-  setMode(true);
-  setPlaying(true);
-  schedule();
-};
 $("property").onchange = (event) => { location.hash = event.target.value; };
 window.addEventListener("hashchange", () => { if (catalog) load(getId()); });
-$("retry").onclick = () => renderer && !renderer.getContext().isContextLost() && catalog ? load(getId()) : location.reload();
+$("retry").onclick = () => renderer && !renderer.getContext?.()?.isContextLost() && catalog ? load(getId()) : location.reload();
 $("fullscreen").hidden = !document.fullscreenEnabled;
 $("fullscreen").onclick = async () => {
   try {
@@ -341,7 +328,6 @@ $("share").onclick = async () => {
 window.addEventListener("keydown", (event) => {
   if (!current || !walking || !keyCommands.has(event.code) || event.target.closest("select, input, textarea") || event.altKey || event.ctrlKey || event.metaKey) return;
   event.preventDefault();
-  setPlaying(false);
   held.add(event.code);
   schedule();
 });
@@ -349,14 +335,13 @@ window.addEventListener("keyup", (event) => held.delete(event.code));
 window.addEventListener("blur", stop);
 canvas.addEventListener("pointerdown", (event) => {
   if (!current || !walking || event.button !== 0 || pointer) return;
-  setPlaying(false);
   canvas.setPointerCapture(event.pointerId);
   pointer = { id: event.pointerId, x: event.clientX, y: event.clientY };
 });
 canvas.addEventListener("pointermove", (event) => {
   if (!pointer || event.pointerId !== pointer.id) return;
-  yaw -= (event.clientX - pointer.x) * 0.004;
-  pitch = clamp(pitch + (event.clientY - pointer.y) * 0.004, -1.4, 1.4);
+  walkRotation.y -= (event.clientX - pointer.x) * 0.004;
+  walkRotation.x = clamp(walkRotation.x + (event.clientY - pointer.y) * 0.004, -1.4, 1.4);
   pointer.x = event.clientX;
   pointer.y = event.clientY;
   placeCamera();
@@ -367,22 +352,19 @@ for (const eventName of ["pointerup", "pointercancel", "lostpointercapture"]) {
 canvas.addEventListener("wheel", (event) => {
   if (!current || !walking) return;
   event.preventDefault();
-  setPlaying(false);
   const wheelPixels = event.deltaMode === 1 ? event.deltaY * 16 : event.deltaY;
-  distance = clamp(distance + wheelPixels * current.speed * 0.003, 0, current.route.total);
-  placeCamera();
+  if (wheelPixels) walk(Math.sign(wheelPixels), 0, current.speed * Math.min(Math.abs(wheelPixels), 100) * 0.001);
 }, { passive: false });
-for (const [id, sign] of [["forward", 1], ["back", -1]]) {
+for (const [id, command] of [["forward", "ArrowUp"], ["back", "ArrowDown"], ["right", "ArrowRight"], ["left", "ArrowLeft"]]) {
   const button = $(id);
   button.addEventListener("pointerdown", (event) => {
     event.preventDefault();
     button.setPointerCapture(event.pointerId);
-    setPlaying(false);
-    touchDirection = sign;
+    touchKeys.add(command);
     schedule();
   });
   for (const type of ["pointerup", "pointercancel", "lostpointercapture"]) {
-    button.addEventListener(type, () => { if (touchDirection === sign) touchDirection = 0; });
+    button.addEventListener(type, () => touchKeys.delete(command));
   }
 }
 
@@ -395,5 +377,5 @@ try {
   await load(getId());
 } catch (error) {
   console.error("Tour initialization failed", error);
-  setStatus("The 3D viewer could not start. Check WebGL and try again.", true);
+  setStatus("The 3D viewer could not start.", true);
 }
