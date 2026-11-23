@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Recover camera poses and a textured mesh from one pass of phone video."""
+"""Recover camera poses and surface geometry from one pass of phone video."""
 
 import argparse
 import subprocess
@@ -74,14 +74,11 @@ def build_surface(frames, model, work, openmvs, threads):
         ["ReconstructMesh", "-i", "dense.mvs", "-o", "mesh.ply",
          "--target-face-num", "85000", "--remove-spurious", "14", "--close-holes", "0",
          "--smooth", "1"],
-        ["TextureMesh", "-i", "dense.mvs", "-m", "mesh.ply", "-o", "textured.mvs",
-         "--export-type", "glb", "--close-holes", "0", "--min-resolution", "320",
-         "--max-texture-size", "2048", "--empty-color", "2650919", "--outlier-threshold", "0.08"],
     ]
     for executable, *args in mesh_steps:
         run([str(openmvs / executable), *args, "--max-threads", str(threads)], work)
-    if not (work / "textured.glb").is_file():
-        raise RuntimeError("OpenMVS did not export a textured mesh.")
+    if not (work / "mesh.ply").is_file():
+        raise RuntimeError("OpenMVS did not export a surface mesh.")
 
 
 def main():
@@ -110,7 +107,7 @@ def main():
     if index not in models or models[index].num_reg_images() < 8:
         raise RuntimeError("Choose a component with at least eight registered camera positions.")
     build_surface(frames, sparse / str(index), work / "mvs", binaries, args.threads)
-    print(f"Textured mesh in {work / 'mvs'} with camera poses from {sparse / str(index)}")
+    print(f"Surface mesh in {work / 'mvs'} with camera poses from {sparse / str(index)}")
 
 
 if __name__ == "__main__":

@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""Package an OpenMVS textured mesh and the registered COLMAP camera route."""
+"""Package a camera-textured GLB and its registered COLMAP capture path."""
 
 import argparse
 import json
 import subprocess
-import struct
 from pathlib import Path
-from tempfile import TemporaryDirectory
 
 import numpy as np
-from PIL import Image
 from scipy.spatial.transform import Rotation
 
 
@@ -57,33 +54,8 @@ def create_metadata(poses, vertices, start, fps):
         "start": min(range(len(poses_web)), key=lambda i: abs(poses_web[i]["t"] - start)),
         "center": ((hi + lo) * 0.5).round(4).tolist(),
         "radius": round(radius, 4),
-        "width": round(radius * 0.027, 4),
         "speed": round(radius * 0.245, 4),
     }
-
-
-def pack_glb(source, target, gltfpack):
-    original = source.read_bytes()
-    total, json_size, section = struct.unpack_from("<II4s", original, 8)
-    if original[:4] != b"glTF" or section != b"JSON" or total != len(original):
-        raise ValueError("Invalid OpenMVS GLB")
-    layout = json.loads(original[20:20 + json_size])
-    with TemporaryDirectory() as directory:
-        tmp = Path(directory)
-        for i, image in enumerate(layout["images"]):
-            old = source.parent / image["uri"]
-            relative = f"atlas-{i}.jpg"
-            with Image.open(old) as pixels:
-                pixels.convert("RGB").save(tmp / relative, quality=91, optimize=True, subsampling=0)
-            image["uri"] = relative
-            image.pop("mimeType", None)
-        revised = json.dumps(layout, separators=(",", ":")).encode()
-        revised += b" " * (-len(revised) % 4)
-        tail = original[20 + json_size:]
-        packed = original[:8] + struct.pack("<II4s", 20 + len(revised) + len(tail), len(revised), b"JSON")
-        source_tmp = tmp / "scan.glb"
-        source_tmp.write_bytes(packed + revised + tail)
-        subprocess.run([gltfpack, "-i", str(source_tmp), "-o", str(target), "-c", "-vp", "15"], check=True)
 
 
 def main():
@@ -105,7 +77,10 @@ def main():
     args.output.parent.mkdir(parents=True, exist_ok=True)
     vertices = read_mesh_vertices(args.mvs / "mesh.ply")
     metadata = create_metadata(poses, vertices, args.start, args.fps)
-    pack_glb(args.mvs / "textured.glb", args.output.with_suffix(".glb"), args.gltfpack)
+    subprocess.run([
+        args.gltfpack, "-i", str(args.mvs / "projected.glb"),
+        "-o", str(args.output.with_suffix(".glb")), "-c", "-vp", "15", "-vt", "14",
+    ], check=True)
     args.output.with_suffix(".json").write_text(json.dumps(metadata, separators=(",", ":")))
 
 
