@@ -3,6 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/addons/libs/meshopt_decoder.module.js";
 import { SoftwareRenderer } from "./software-renderer.js";
+import { loadProjection } from "./texture-projection.js";
 
 const $ = (id) => document.getElementById(id);
 const canvas = $("scene");
@@ -159,7 +160,9 @@ function walk(forward, sideways, step) {
 }
 
 function draw() {
-  if (renderer && current) renderer.render(display, camera);
+  if (!renderer || !current) return;
+  current.projection?.update(camera, walking);
+  renderer.render(display, camera);
 }
 
 function drawMap() {
@@ -292,12 +295,22 @@ async function load(id) {
       }),
       loader.loadAsync(entry.mesh),
     ]);
+    let projection;
+    if (entry.views && ticket === request) {
+      try {
+        projection = await loadProjection(entry.views, metadata.alignment, metadata.radius);
+      } catch (error) {
+        console.warn("Additional scan textures unavailable", error);
+      }
+    }
     if (ticket !== request) {
+      projection?.dispose();
       dispose(gltf.scene);
       return;
     }
     if (metadata.poses.length < 2) throw new Error("Incomplete camera route");
     if (current) {
+      current.projection?.dispose();
       display.remove(current.model);
       dispose(current.model);
     }
@@ -310,13 +323,15 @@ async function load(id) {
         map: source.map, color: source.color, vertexColors: source.vertexColors,
         side: THREE.DoubleSide, toneMapped: false,
       });
+      projection?.applyMaterial(object.material);
       source.dispose();
     });
     gltf.scene.quaternion.set(...metadata.alignment);
     display.add(gltf.scene);
     gltf.scene.updateMatrixWorld(true);
     renderer.setMeshes?.(meshes);
-    current = { ...metadata, model: gltf.scene, meshes, route: makeRoute(metadata.poses),
+    renderer.setProjection?.(projection);
+    current = { ...metadata, projection, model: gltf.scene, meshes, route: makeRoute(metadata.poses),
       walkRadius: metadata.radius * 0.105, angles: supportedAngles(metadata.poses, metadata.start) };
     walking = true;
     reset();

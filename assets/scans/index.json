@@ -2,15 +2,17 @@
   {
     "id": "tour-1",
     "name": "Courtyard residence",
-    "coverage": "Living and dining walkthrough \u00b7 partial property scan",
+    "coverage": "Living room walkthrough · partial property scan",
     "mesh": "./assets/scans/a.glb",
-    "track": "./assets/scans/a.json"
+    "track": "./assets/scans/a.json",
+    "views": "./assets/scans/a-views"
   },
   {
     "id": "tour-2",
     "name": "Tiled residence",
-    "coverage": "Front rooms walkthrough \u00b7 partial property scan",
+    "coverage": "Front rooms walkthrough · partial property scan",
     "mesh": "./assets/scans/b.glb",
-    "track": "./assets/scans/b.json"
+    "track": "./assets/scans/b.json",
+    "views": "./assets/scans/b-views"
   }
 ]

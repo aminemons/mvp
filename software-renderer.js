@@ -52,6 +52,10 @@ export class SoftwareRenderer {
     });
   }
 
+  setProjection(projection) {
+    this.projection = projection;
+  }
+
   render(_scene, camera) {
     if (!this.image) return;
     this.pixels.fill(background);
@@ -79,7 +83,7 @@ export class SoftwareRenderer {
     this.context.putImageData(this.image, 0, 0);
   }
 
-  rasterize({ indices, projected, texcoords, atlas }, width, height) {
+  rasterize({ indices, projected, texcoords, world, atlas }, width, height) {
     for (let i = 0; i < indices.length; i += 3) {
       const a = indices[i], b = indices[i + 1], c = indices[i + 2];
       const da = projected[a * 3 + 2], db = projected[b * 3 + 2], dc = projected[c * 3 + 2];
@@ -109,7 +113,16 @@ export class SoftwareRenderer {
           const v = (qa * va + qb * vb + qc * vc) / depth;
           const tx = Math.max(0, Math.min(atlas.width - 1, Math.floor(u * atlas.width)));
           const ty = Math.max(0, Math.min(atlas.height - 1, Math.floor(v * atlas.height)));
-          this.pixels[offset] = atlas.colors[ty * atlas.width + tx];
+          const fallback = atlas.colors[ty * atlas.width + tx];
+          if (this.projection) {
+            const wa = qa * da / depth, wb = qb * db / depth, wc = qc * dc / depth;
+            const wx = wa * world[a * 3] + wb * world[b * 3] + wc * world[c * 3];
+            const wy = wa * world[a * 3 + 1] + wb * world[b * 3 + 1] + wc * world[c * 3 + 1];
+            const wz = wa * world[a * 3 + 2] + wb * world[b * 3 + 2] + wc * world[c * 3 + 2];
+            this.pixels[offset] = this.projection.sample(wx, wy, wz, atlas, fallback);
+          } else {
+            this.pixels[offset] = fallback;
+          }
           this.depth[offset] = depth;
         }
       }

@@ -6,7 +6,7 @@ Vyral Spaces renders a single textured 3D mesh per property. Drag to look around
 
 ## Reconstruction results
 
-Both MP4s are portrait 360 × 640 WhatsApp recordings. Camera intrinsics and poses were solved with CPU COLMAP. OpenMVS estimated depth from adjacent views, fused depth supported by multiple views, and reconstructed a surface. Near the published views, relative depth from Depth Anything V2 Small is calibrated to the measured mesh and used to fill visible gaps. Each retained face is textured with original pixels from a calibrated view that can see it. The browser renders these triangles and textures at each new camera position.
+Both MP4s are portrait 360 × 640 WhatsApp recordings. Camera intrinsics and poses were solved with CPU COLMAP. OpenMVS estimated depth from adjacent views, fused depth supported by multiple views, and reconstructed a surface. Near the published views, relative depth from Depth Anything V2 Small is calibrated to the measured mesh and used to fill visible gaps. Each retained face is textured with original pixels from a calibrated view that can see it. Walk mode blends nearby source views on the 3D surface and uses per-view depth to reject occluded pixels. The browser renders these triangles and textures at each new camera position.
 
 | Property | Sampled frames | Registered in published mesh | Fused 3D points | Textured triangles | Walk coverage |
 | --- | ---: | ---: | ---: | ---: | --- |
@@ -36,6 +36,8 @@ python scripts/package_scan.py \
 ```
 
 For depth completion, install ONNX Runtime and OpenCV, then run `python scripts/complete_depth.py work/pilot/mvs --model depth-anything-v2-small.onnx --frames 124 121 127 --output work/pilot/mvs/completed.ply`. Choose registered frames from the intended region and pass `--mesh work/pilot/mvs/completed.ply` to `project_atlas.py`. Use the [Depth Anything V2 Small ONNX model](https://huggingface.co/onnx-community/depth-anything-v2-small/tree/4472b7362082ad9968fee890ca0f1e5aca36b93d/onnx).
+
+To enable view-dependent texturing, export camera details and visibility with `scripts/export_projections.py`. Use the same mesh, reference-frame interval, and hero time as the atlas bake. Point the property manifest’s `views` field to the shared basename of the resulting JSON and PNG.
 
 Use the COLMAP component printed by the first command. Inspect the geometry and camera path before choosing the `--first`, `--last` and `--start` times. An index entry in `assets/scans/index.json` binds the verified mesh and route to the property picker. The older GitHub Actions workflow targets the retired point-cloud format and is independent of this mesh build.
 
