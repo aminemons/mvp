@@ -12,7 +12,7 @@ const ctx = map.getContext("2d");
 const coarse = matchMedia("(pointer: coarse)");
 const up = new THREE.Vector3(0, 1, 0);
 const vector = (values) => new THREE.Vector3(...values);
-const clamp = THREE.MathUtils.clamp;
+const { clamp, degToRad, radToDeg } = THREE.MathUtils;
 const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
 const display = new THREE.Scene();
 display.background = new THREE.Color("#2c2c30");
@@ -89,10 +89,34 @@ function resize() {
   const { width, height } = viewer.getBoundingClientRect();
   if (!width || !height) return;
   camera.aspect = width / height;
-  camera.fov = clamp(64 - 15 * (camera.aspect - 0.7), 44, 68);
-  camera.updateProjectionMatrix();
+  updateLens();
   renderer.setSize(width, height, false);
   draw();
+}
+
+function updateLens() {
+  const vertical = 2 * Math.atan(Math.tan(degToRad(59) / 2) / camera.aspect);
+  camera.fov = walking ? Math.min(64, radToDeg(vertical)) : 48;
+  camera.updateProjectionMatrix();
+}
+
+function headingOf(pose) {
+  const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(new THREE.Quaternion(...pose.q).normalize());
+  return { yaw: Math.atan2(-forward.x, -forward.z), pitch: Math.asin(clamp(forward.y, -1, 1)) };
+}
+
+function angleFrom(yaw, base) {
+  return Math.atan2(Math.sin(yaw - base), Math.cos(yaw - base));
+}
+
+function supportedAngles(poses, start) {
+  const base = headingOf(poses[start]).yaw;
+  const headings = poses.map(headingOf);
+  const yaw = headings.map((pose) => angleFrom(pose.yaw, base));
+  const pitch = headings.map((pose) => pose.pitch);
+  const margin = degToRad(13);
+  return { base, left: Math.min(...yaw) - margin, right: Math.max(...yaw) + margin,
+    lower: Math.max(-1.1, Math.min(...pitch) - margin), upper: Math.min(1.1, Math.max(...pitch) + margin) };
 }
 
 function makeRoute(poses) {
@@ -181,6 +205,7 @@ function setMode(walk) {
   if (!current) return;
   stop();
   walking = walk;
+  updateLens();
   orbit.enabled = !walk;
   $("walk").setAttribute("aria-pressed", String(walk));
   $("orbit").setAttribute("aria-pressed", String(!walk));
@@ -207,8 +232,8 @@ function reset() {
   if (!current) return;
   const pose = current.poses[current.start];
   walkPosition.copy(vector(pose.p));
-  direction.set(0, 0, -1).applyQuaternion(new THREE.Quaternion(...pose.q).normalize());
-  walkRotation.set(Math.asin(clamp(direction.y, -1, 1)), Math.atan2(-direction.x, -direction.z), 0);
+  const { pitch, yaw } = headingOf(pose);
+  walkRotation.set(pitch, yaw, 0);
   setMode(walking);
 }
 
@@ -292,7 +317,7 @@ async function load(id) {
     gltf.scene.updateMatrixWorld(true);
     renderer.setMeshes?.(meshes);
     current = { ...metadata, model: gltf.scene, meshes, route: makeRoute(metadata.poses),
-      walkRadius: metadata.radius * 0.19 };
+      walkRadius: metadata.radius * 0.105, angles: supportedAngles(metadata.poses, metadata.start) };
     walking = true;
     reset();
     setStatus("");
@@ -342,8 +367,15 @@ canvas.addEventListener("pointerdown", (event) => {
 });
 canvas.addEventListener("pointermove", (event) => {
   if (!pointer || event.pointerId !== pointer.id) return;
-  walkRotation.y -= (event.clientX - pointer.x) * 0.004;
-  walkRotation.x = clamp(walkRotation.x + (event.clientY - pointer.y) * 0.004, -1.4, 1.4);
+  const { base, left, right, lower, upper } = current.angles;
+  const turned = angleFrom(walkRotation.y, base) - (event.clientX - pointer.x) * 0.0025;
+  const tilted = walkRotation.x + (event.clientY - pointer.y) * 0.0025;
+  walkRotation.y = base + clamp(turned, left, right);
+  walkRotation.x = clamp(tilted, lower, upper);
+  if (!pointer.limited && (turned < left || turned > right || tilted < lower || tilted > upper)) {
+    pointer.limited = true;
+    notify("Edge of the captured views");
+  }
   pointer.x = event.clientX;
   pointer.y = event.clientY;
   placeCamera();

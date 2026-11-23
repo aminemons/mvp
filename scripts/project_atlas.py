@@ -60,7 +60,7 @@ def assign_views(mesh, views, preferred, model):
         center_weight = np.clip(edges.min(axis=1) / 0.12, 0.2, 1)
         strength = (0.3 + 0.7 * facing) * center_weight / np.maximum(distances, 0.2) ** 0.45
         if image.name == preferred.name:
-            strength *= 2.25
+            strength *= 4
         improves = strength > strengths[face_ids]
         ids = face_ids[improves]
         strengths[ids] = strength[improves]
@@ -99,6 +99,7 @@ def write_glb(path, positions, texcoords, indices, material_texture):
 def main():
     parser = argparse.ArgumentParser(description='Bake real views onto the reconstructed texture mesh.')
     parser.add_argument('workspace', type=Path)
+    parser.add_argument('--mesh', type=Path, help='Optional completed or filtered mesh')
     parser.add_argument('--first', type=float, default=0)
     parser.add_argument('--last', type=float, default=float('inf'))
     parser.add_argument('--interval', type=int, default=3)
@@ -109,7 +110,7 @@ def main():
         parser.error("Choose a positive frame rate, stride, and time interval.")
     work = args.workspace
     model = colmap.Reconstruction(work / 'sparse')
-    mesh = trimesh.load_mesh(work / 'mesh.ply', process=False)
+    mesh = trimesh.load_mesh(args.mesh or work / 'mesh.ply', process=False)
     views, preferred = pick_views(model, args.first, args.last, args.interval, args.hero, args.fps)
     assignments, projections = assign_views(mesh, views, preferred, model)
     camera = model.cameras[views[0].camera_id]
